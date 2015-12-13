@@ -1604,6 +1604,8 @@ void trigger_sparkle_update();
 
 void OBSBasic::TimedCheckForUpdates()
 {
+// disable automatic update checks
+/*
 #ifdef UPDATE_SPARKLE
 	init_sparkle_updater(config_get_bool(App()->GlobalConfig(), "General",
 				"UpdateToUndeployed"));
@@ -1625,10 +1627,13 @@ void OBSBasic::TimedCheckForUpdates()
 	if (secs > UPDATE_CHECK_INTERVAL)
 		CheckForUpdates();
 #endif
+*/
 }
 
 void OBSBasic::CheckForUpdates()
 {
+// disable manual update checks
+/*
 #ifdef UPDATE_SPARKLE
 	trigger_sparkle_update();
 #else
@@ -1646,6 +1651,7 @@ void OBSBasic::CheckForUpdates()
 			this, &OBSBasic::updateFileFinished);
 	updateCheckThread->start();
 #endif
+*/
 }
 
 #ifdef __APPLE__
