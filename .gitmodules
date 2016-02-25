@@ -7,4 +7,4 @@
 	url = https://github.com/palana/Syphon-Framework.git
 [submodule "plugins/input-uiohook/libuiohook"]
 	path = plugins/input-uiohook/libuiohook
-	url = git@github.com:ChristianFrisson/libuiohook.git
+	url = https://github.com/InspectorWidget/libuiohook.git
