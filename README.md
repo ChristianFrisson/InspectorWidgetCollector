@@ -59,6 +59,7 @@ Create a build folder, open a terminal inside:
 ```cmake <source_path> -DCMAKE_TOOLCHAIN_FILE=<mxe_path>/usr/i686-w64-mingw32.static/share/cmake/mxe-conf.cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_INSTALL_PREFIX=release```
 replace `<source_path>` with the path to the source directory from above
 replace `<mxe_path>` with the root path where mxe is installed
+```
 * compile: 
 ```make```
 * make a portable distribution:
