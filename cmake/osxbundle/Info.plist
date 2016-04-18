@@ -3,15 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIconFile</key>
-	<string>OBS.icns</string>
+	<string>InspectorWidgetCollector.icns</string>
 	<key>CFBundleName</key>
-	<string>OBS</string>
+	<string>InspectorWidgetCollector</string>
 	<key>CFBundleGetInfoString</key>
-	<string>OBS - Free and Open Source Streaming/Recording Software</string>
+	<string>InspectorWidgetCollector - Free and Open Source Streaming/Recording Software</string>
 	<key>CFBundleExecutable</key>
-	<string>OBS</string>
+	<string>InspectorWidgetCollector</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.obsproject.obs-studio</string>
+	<string>com.github.InspectorWidget.InspectorWidgetCollector</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
