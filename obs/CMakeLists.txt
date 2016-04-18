@@ -1,4 +1,5 @@
-project(obs)
+project(InspectorWidgetCollector)
+set(obs_APP "InspectorWidgetCollector")
 
 option(ENABLE_UI "Enables the OBS user interfaces" ON)
 if(DISABLE_UI)
@@ -194,7 +195,7 @@ set(obs_QRC
 qt5_wrap_ui(obs_UI_HEADERS ${obs_UI})
 qt5_add_resources(obs_QRC_SOURCES ${obs_QRC})
 
-add_executable(obs WIN32
+add_executable(${obs_APP} WIN32
 	${obs_SOURCES}
 	${obs_HEADERS}
 	${obs_UI_HEADERS}
@@ -212,17 +213,17 @@ if(WIN32)
 			OUTPUT_NAME "obs${_output_suffix}")
 endif()
 
-target_link_libraries(obs
+target_link_libraries(${obs_APP}
 	libobs
 	libff
 	Qt5::Widgets
 	${LIBCURL_LIBRARIES}
 	${obs_PLATFORM_LIBRARIES})
 
-define_graphic_modules(obs)
+define_graphic_modules(${obs_APP})
 
-install_obs_core(obs)
-install_obs_data(obs data obs-studio)
+install_obs_core(${obs_APP})
+install_obs_data(${obs_APP} data obs-studio)
 
 if (UNIX AND UNIX_STRUCTURE AND NOT APPLE)
 	install(FILES dist/obs.desktop DESTINATION share/applications)

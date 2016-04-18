@@ -162,7 +162,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	installEventFilter(CreateShortcutFilter());
 
 	stringstream name;
-	name << "OBS " << App()->GetVersionString();	
+	name << "InspectorWidgetCollector " << App()->GetVersionString();
 	blog(LOG_INFO, "%s", name.str().c_str());
 	blog(LOG_INFO, "---------------------------------");
 
@@ -2881,7 +2881,7 @@ void OBSBasic::UploadLog(const char *file)
 	obs_data_set_obj(files.get(), file, content.get());
 
 	stringstream ss;
-	ss << "OBS " << App()->GetVersionString()
+	ss << "InspectorWidgetCollector " << App()->GetVersionString()
 	   << " log file uploaded at " << CurrentDateTimeString();
 	obs_data_set_string(request.get(), "description", ss.str().c_str());
 	obs_data_set_bool(request.get(), "public", false);
@@ -3743,7 +3743,7 @@ void OBSBasic::UpdateTitleBar()
 	const char *sceneCollection = config_get_string(App()->GlobalConfig(),
 			"Basic", "SceneCollection");
 
-	name << "OBS " << App()->GetVersionString();
+	name << "InspectorWidgetCollector " << App()->GetVersionString();
 	name << " - " << Str("TitleBar.Profile") << ": " << profile;
 	name << " - " << Str("TitleBar.Scenes") << ": " << sceneCollection;
 
