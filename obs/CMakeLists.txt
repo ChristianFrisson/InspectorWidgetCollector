@@ -106,6 +106,7 @@ set(obs_SOURCES
 	window-basic-main-outputs.cpp
 	window-basic-source-select.cpp
 	window-basic-main-scene-collections.cpp
+	window-basic-main-transitions.cpp
 	window-basic-main-profiles.cpp
 	window-license-agreement.cpp
 	window-basic-status-bar.cpp
@@ -118,6 +119,7 @@ set(obs_SOURCES
 	window-remux.cpp
 	properties-view.cpp
 	focus-list.cpp
+	menu-button.cpp
 	double-slider.cpp
 	volume-control.cpp
 	adv-audio-control.cpp
@@ -160,6 +162,7 @@ set(obs_HEADERS
 	display-helpers.hpp
 	double-slider.hpp
 	focus-list.hpp
+	menu-button.hpp
 	mute-checkbox.hpp
 	volume-control.hpp
 	adv-audio-control.hpp
@@ -226,9 +229,9 @@ install_obs_core(${obs_APP})
 install_obs_data(${obs_APP} data obs-studio)
 
 if (UNIX AND UNIX_STRUCTURE AND NOT APPLE)
-	install(FILES dist/obs.desktop DESTINATION share/applications)
+	install(FILES dist/obs.desktop DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/applications)
 	install(FILES forms/images/obs.png
-		DESTINATION share/icons/hicolor/256x256/apps)
+		DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps)
 endif()
 
 if(APPLE AND DEFINED ENV{FIXUP_BUNDLE})

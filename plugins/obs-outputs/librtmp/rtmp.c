@@ -33,6 +33,11 @@
 #include "log.h"
 
 #ifdef CRYPTO
+
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #ifdef USE_POLARSSL
 #include <polarssl/havege.h>
 #include <polarssl/md5.h>
@@ -1384,7 +1389,7 @@ WriteN(RTMP *r, const char *buffer, int n)
 
     if (r->Link.rc4keyOut)
     {
-        if (n > sizeof(buf))
+        if (n > (int)sizeof(buf))
             encrypted = (char *)malloc(n);
         else
             encrypted = (char *)buf;
@@ -2344,6 +2349,8 @@ AV_clear(RTMP_METHOD *vals, int num)
 static int
 b64enc(const unsigned char *input, int length, char *output, int maxsize)
 {
+    (void)maxsize;
+
 #ifdef USE_POLARSSL
     size_t buf_size = maxsize;
     if(base64_encode((unsigned char *) output, &buf_size, input, length) == 0)

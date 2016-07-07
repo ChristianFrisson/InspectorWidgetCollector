@@ -23,14 +23,25 @@
 
 /* how obs scene! */
 
+struct item_action {
+	bool visible;
+	uint64_t timestamp;
+};
+
 struct obs_scene_item {
 	volatile long         ref;
 	volatile bool         removed;
 
 	struct obs_scene      *parent;
 	struct obs_source     *source;
+	volatile long         active_refs;
+	volatile long         defer_update;
+	bool                  user_visible;
 	bool                  visible;
 	bool                  selected;
+
+	gs_texrender_t        *item_render;
+	struct obs_sceneitem_crop crop;
 
 	struct vec2           pos;
 	struct vec2           scale;
@@ -42,6 +53,9 @@ struct obs_scene_item {
 	uint32_t              last_width;
 	uint32_t              last_height;
 
+	struct vec2           output_scale;
+	enum obs_scale_type   scale_filter;
+
 	struct matrix4        box_transform;
 	struct matrix4        draw_transform;
 
@@ -51,6 +65,9 @@ struct obs_scene_item {
 
 	obs_hotkey_pair_id    toggle_visibility;
 
+	pthread_mutex_t       actions_mutex;
+	DARRAY(struct item_action) audio_actions;
+
 	/* would do **prev_next, but not really great for reordering */
 	struct obs_scene_item *prev;
 	struct obs_scene_item *next;
@@ -59,6 +76,7 @@ struct obs_scene_item {
 struct obs_scene {
 	struct obs_source     *source;
 
-	pthread_mutex_t       mutex;
+	pthread_mutex_t       video_mutex;
+	pthread_mutex_t       audio_mutex;
 	struct obs_scene_item *first_item;
 };

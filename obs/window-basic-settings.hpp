@@ -108,6 +108,13 @@ private:
 	QPointer<QLabel> advOutRecWarning;
 	QPointer<QLabel> simpleOutRecWarning;
 
+	QString curPreset;
+	QString curQSVPreset;
+	QString curNVENCPreset;
+
+	QString curAdvStreamEncoder;
+	QString curAdvRecordEncoder;
+
 	using AudioSource_t =
 		std::tuple<OBSWeakSource,
 			QPointer<QCheckBox>, QPointer<QSpinBox>,
@@ -120,6 +127,9 @@ private:
 	std::vector<std::pair<bool, QPointer<OBSHotkeyWidget>>> hotkeys;
 	OBSSignal hotkeyRegistered;
 	OBSSignal hotkeyUnregistered;
+
+	uint32_t outputCX = 0;
+	uint32_t outputCY = 0;
 
 	void SaveCombo(QComboBox *widget, const char *section,
 			const char *value);
@@ -210,8 +220,7 @@ private:
 
 	/* video */
 	void LoadRendererList();
-	void ResetDownscales(uint32_t cx, uint32_t cy,
-			uint32_t out_cx, uint32_t out_cy);
+	void ResetDownscales(uint32_t cx, uint32_t cy);
 	void LoadDownscaleFilters();
 	void LoadResolutionLists();
 	void LoadFPSData();
@@ -229,6 +238,9 @@ private:
 	void UpdateAdvOutStreamDelayEstimate();
 
 	void FillSimpleRecordingValues();
+	void FillSimpleStreamingValues();
+
+	void RecalcOutputResPixels(const char *resText);
 
 private slots:
 	void on_theme_activated(int idx);
@@ -249,7 +261,11 @@ private slots:
 
 	void on_colorFormat_currentIndexChanged(const QString &text);
 
+	void on_filenameFormatting_textEdited(const QString &text);
+	void on_outputResolution_editTextChanged(const QString &text);
 	void on_baseResolution_editTextChanged(const QString &text);
+
+	void on_disableOSXVSync_clicked();
 
 	void GeneralChanged();
 	void AudioChanged();
@@ -272,6 +288,8 @@ private slots:
 	void SimpleRecordingQualityChanged();
 	void SimpleRecordingEncoderChanged();
 	void SimpleRecordingQualityLosslessWarning(int idx);
+
+	void SimpleStreamingEncoderChanged();
 
 protected:
 	virtual void closeEvent(QCloseEvent *event);

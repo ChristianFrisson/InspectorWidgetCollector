@@ -95,12 +95,12 @@ static void AddSource(void *_data, obs_scene_t *scene)
 
 static void AddExisting(const char *name, const bool visible)
 {
-	obs_source_t *source = obs_get_output_source(0);
-	obs_scene_t  *scene  = obs_scene_from_source(source);
+	OBSBasic *main = reinterpret_cast<OBSBasic*>(App()->GetMainWindow());
+	OBSScene scene = main->GetCurrentScene();
 	if (!scene)
 		return;
 
-	source = obs_get_source_by_name(name);
+	obs_source_t *source = obs_get_source_by_name(name);
 	if (source) {
 		AddSourceData data;
 		data.source = source;
@@ -109,32 +109,27 @@ static void AddExisting(const char *name, const bool visible)
 
 		obs_source_release(source);
 	}
-
-	obs_scene_release(scene);
 }
 
 bool AddNew(QWidget *parent, const char *id, const char *name,
 		const bool visible, OBSSource &newSource)
 {
-	obs_source_t *source  = obs_get_output_source(0);
-	obs_scene_t  *scene   = obs_scene_from_source(source);
+	OBSBasic     *main = reinterpret_cast<OBSBasic*>(App()->GetMainWindow());
+	OBSScene     scene = main->GetCurrentScene();
 	bool         success = false;
-	if (!source)
+	if (!scene)
 		return false;
 
-	source = obs_get_source_by_name(name);
+	obs_source_t *source = obs_get_source_by_name(name);
 	if (source) {
 		QMessageBox::information(parent,
 				QTStr("NameExists.Title"),
 				QTStr("NameExists.Text"));
 
 	} else {
-		source = obs_source_create(OBS_SOURCE_TYPE_INPUT,
-				id, name, NULL, nullptr);
+		source = obs_source_create(id, name, NULL, nullptr);
 
 		if (source) {
-			obs_add_source(source);
-
 			AddSourceData data;
 			data.source = source;
 			data.visible = visible;
@@ -147,8 +142,6 @@ bool AddNew(QWidget *parent, const char *id, const char *name,
 	}
 
 	obs_source_release(source);
-	obs_scene_release(scene);
-
 	return success;
 }
 
@@ -184,6 +177,21 @@ void OBSBasicSourceSelect::on_buttonBox_rejected()
 	done(DialogCode::Rejected);
 }
 
+static inline const char *GetSourceDisplayName(const char *id)
+{
+	if (strcmp(id, "scene") == 0)
+		return Str("Basic.Scene");
+	return obs_source_get_display_name(id);
+}
+
+Q_DECLARE_METATYPE(OBSScene);
+
+template <typename T>
+static inline T GetOBSRef(QListWidgetItem *item)
+{
+	return item->data(static_cast<int>(QtDataRole::OBSRef)).value<T>();
+}
+
 OBSBasicSourceSelect::OBSBasicSourceSelect(OBSBasic *parent, const char *id_)
 	: QDialog (parent),
 	  ui      (new Ui::OBSBasicSourceSelect),
@@ -193,8 +201,7 @@ OBSBasicSourceSelect::OBSBasicSourceSelect(OBSBasic *parent, const char *id_)
 
 	ui->sourceList->setAttribute(Qt::WA_MacShowFocusRect, false);
 
-	QString placeHolderText{QT_UTF8(obs_source_get_display_name(
-				OBS_SOURCE_TYPE_INPUT, id))};
+	QString placeHolderText{QT_UTF8(GetSourceDisplayName(id))};
 
 	QString text{placeHolderText};
 	int i = 1;
@@ -210,5 +217,29 @@ OBSBasicSourceSelect::OBSBasicSourceSelect(OBSBasic *parent, const char *id_)
 
 	installEventFilter(CreateShortcutFilter());
 
-	obs_enum_sources(EnumSources, this);
+	if (strcmp(id_, "scene") == 0) {
+		OBSBasic *main = reinterpret_cast<OBSBasic*>(
+				App()->GetMainWindow());
+		OBSSource curSceneSource = main->GetCurrentSceneSource();
+
+		ui->selectExisting->setChecked(true);
+		ui->createNew->setChecked(false);
+		ui->createNew->setEnabled(false);
+		ui->sourceName->setEnabled(false);
+
+		int count = main->ui->scenes->count();
+		for (int i = 0; i < count; i++) {
+			QListWidgetItem *item = main->ui->scenes->item(i);
+			OBSScene scene = GetOBSRef<OBSScene>(item);
+			OBSSource sceneSource = obs_scene_get_source(scene);
+
+			if (curSceneSource == sceneSource)
+				continue;
+
+			const char *name = obs_source_get_name(sceneSource);
+			ui->sourceList->addItem(QT_UTF8(name));
+		}
+	} else {
+		obs_enum_sources(EnumSources, this);
+	}
 }

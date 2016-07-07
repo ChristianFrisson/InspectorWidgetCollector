@@ -284,6 +284,9 @@ enum gs_shader_param_type {
 	GS_SHADER_PARAM_VEC2,
 	GS_SHADER_PARAM_VEC3,
 	GS_SHADER_PARAM_VEC4,
+	GS_SHADER_PARAM_INT2,
+	GS_SHADER_PARAM_INT3,
+	GS_SHADER_PARAM_INT4,
 	GS_SHADER_PARAM_MATRIX4X4,
 	GS_SHADER_PARAM_TEXTURE,
 };
@@ -322,6 +325,8 @@ EXPORT void gs_shader_set_vec4(gs_sparam_t *param, const struct vec4 *val);
 EXPORT void gs_shader_set_texture(gs_sparam_t *param, gs_texture_t *val);
 EXPORT void gs_shader_set_val(gs_sparam_t *param, const void *val, size_t size);
 EXPORT void gs_shader_set_default(gs_sparam_t *param);
+EXPORT void gs_shader_set_next_sampler(gs_sparam_t *param,
+		gs_samplerstate_t *sampler);
 
 /* ---------------------------------------------------
  * effect functions
@@ -390,6 +395,8 @@ EXPORT void gs_effect_set_vec4(gs_eparam_t *param, const struct vec4 *val);
 EXPORT void gs_effect_set_texture(gs_eparam_t *param, gs_texture_t *val);
 EXPORT void gs_effect_set_val(gs_eparam_t *param, const void *val, size_t size);
 EXPORT void gs_effect_set_default(gs_eparam_t *param);
+EXPORT void gs_effect_set_next_sampler(gs_eparam_t *param,
+		gs_samplerstate_t *sampler);
 
 /* ---------------------------------------------------
  * texture render helper functions
@@ -502,6 +509,8 @@ EXPORT gs_shader_t *gs_pixelshader_create_from_file(const char *file,
 		char **error_string);
 
 EXPORT gs_texture_t *gs_texture_create_from_file(const char *file);
+EXPORT uint8_t *gs_create_texture_file_data(const char *file,
+		enum gs_color_format *format, uint32_t *cx, uint32_t *cy);
 
 #define GS_FLIP_U (1<<0)
 #define GS_FLIP_V (1<<1)

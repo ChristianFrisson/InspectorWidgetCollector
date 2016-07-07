@@ -109,7 +109,14 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 				OBSBasicFilters::DrawPreview, this);
 	};
 
-	connect(ui->preview, &OBSQTDisplay::DisplayCreated, addDrawCallback);
+	enum obs_source_type type = obs_source_get_type(source);
+	uint32_t caps = obs_source_get_output_flags(source);
+	bool drawable_type = type == OBS_SOURCE_TYPE_INPUT ||
+		type == OBS_SOURCE_TYPE_SCENE;
+
+	if (drawable_type && (caps & OBS_SOURCE_VIDEO) != 0)
+		connect(ui->preview, &OBSQTDisplay::DisplayCreated,
+				addDrawCallback);
 }
 
 OBSBasicFilters::~OBSBasicFilters()
@@ -308,10 +315,8 @@ QMenu *OBSBasicFilters::CreateAddFilterPopupMenu(bool async)
 
 	QMenu *popup = new QMenu(QTStr("Add"), this);
 	while (obs_enum_filter_types(idx++, &type)) {
-		const char *name = obs_source_get_display_name(
-				OBS_SOURCE_TYPE_FILTER, type);
-		uint32_t filterFlags = obs_get_source_output_flags(
-				OBS_SOURCE_TYPE_FILTER, type);
+		const char *name = obs_source_get_display_name(type);
+		uint32_t filterFlags = obs_get_source_output_flags(type);
 
 		if (!filter_compatible(async, sourceFlags, filterFlags))
 			continue;
@@ -337,8 +342,7 @@ void OBSBasicFilters::AddNewFilter(const char *id)
 {
 	if (id && *id) {
 		obs_source_t *existing_filter;
-		string name = obs_source_get_display_name(
-				OBS_SOURCE_TYPE_FILTER, id);
+		string name = obs_source_get_display_name(id);
 
 		bool success = NameDialog::AskForName(this,
 				QTStr("Basic.Filters.AddFilter.Title"),
@@ -366,8 +370,8 @@ void OBSBasicFilters::AddNewFilter(const char *id)
 			return;
 		}
 
-		obs_source_t *filter = obs_source_create(OBS_SOURCE_TYPE_FILTER,
-				id, name.c_str(), nullptr, nullptr);
+		obs_source_t *filter = obs_source_create(id, name.c_str(),
+				nullptr, nullptr);
 		if (filter) {
 			obs_source_filter_add(source, filter);
 			obs_source_release(filter);
@@ -389,6 +393,9 @@ void OBSBasicFilters::closeEvent(QCloseEvent *event)
 	QDialog::closeEvent(event);
 	if (!event->isAccepted())
 		return;
+
+	obs_display_remove_draw_callback (ui->preview->GetDisplay(),
+		OBSBasicFilters::DrawPreview, this);
 
 	main->SaveProject();
 }

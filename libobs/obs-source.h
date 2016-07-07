@@ -35,6 +35,7 @@ enum obs_source_type {
 	OBS_SOURCE_TYPE_INPUT,
 	OBS_SOURCE_TYPE_FILTER,
 	OBS_SOURCE_TYPE_TRANSITION,
+	OBS_SOURCE_TYPE_SCENE,
 };
 
 
@@ -87,15 +88,6 @@ enum obs_source_type {
 #define OBS_SOURCE_CUSTOM_DRAW  (1<<3)
 
 /**
- * Source uses a color matrix (usually YUV sources).
- *
- * When this is used, the video_render callback will automatically assign a
- * 4x4 YUV->RGB matrix to the "color_matrix" parameter of the effect, or it can
- * be changed to a custom value.
- */
-#define OBS_SOURCE_COLOR_MATRIX (1<<4)
-
-/**
  * Source supports interaction.
  *
  * When this is used, the source will receive interaction events
@@ -103,10 +95,34 @@ enum obs_source_type {
  */
 #define OBS_SOURCE_INTERACTION (1<<5)
 
+/**
+ * Source composites sub-sources
+ *
+ * When used specifies that the source composites one or more sub-sources.
+ * Sources that render sub-sources must implement the audio_render callback
+ * in order to perform custom mixing of sub-sources.
+ *
+ * This capability flag is always set for transitions.
+ */
+#define OBS_SOURCE_COMPOSITE (1<<6)
+
+/**
+ * Source should not be fully duplicated
+ *
+ * When this is used, specifies that the source should not be fully duplicated,
+ * and should prefer to duplicate via holding references rather than full
+ * duplication.
+ */
+#define OBS_SOURCE_DO_NOT_DUPLICATE (1<<7)
+
 /** @} */
 
 typedef void (*obs_source_enum_proc_t)(obs_source_t *parent,
 		obs_source_t *child, void *param);
+
+struct obs_source_audio_mix {
+	struct audio_output_data output[MAX_AUDIO_MIXES];
+};
 
 /**
  * Source definition structure
@@ -271,14 +287,15 @@ struct obs_source_info {
 			struct obs_audio_data *audio);
 
 	/**
-	 * Called to enumerate all sources being used within this source.
-	 * If the source has children it must implement this callback.
+	 * Called to enumerate all active sources being used within this
+	 * source.  If the source has children that render audio/video it must
+	 * implement this callback.
 	 *
 	 * @param  data           Filter data
 	 * @param  enum_callback  Enumeration callback
 	 * @param  param          User data to pass to callback
 	 */
-	void (*enum_sources)(void *data,
+	void (*enum_active_sources)(void *data,
 			obs_source_enum_proc_t enum_callback,
 			void *param);
 
@@ -375,15 +392,6 @@ struct obs_source_info {
 			bool key_up);
 
 	/**
-	 * Called to transition sources get the volume of a transitioning
-	 * sub-source.
-	 *
-	 * @param data         Source data
-	 * @param source       Transitioning sub-source to get the volume of
-	 */
-	float (*get_transition_volume)(void *data, obs_source_t *source);
-
-	/**
 	 * Called when the filter is removed from a source
 	 *
 	 * @param  data    Filter data
@@ -400,6 +408,10 @@ struct obs_source_info {
 	 * If defined, called to free private data on shutdown
 	 */
 	void (*free_type_data)(void *type_data);
+
+	bool (*audio_render)(void *data, uint64_t *ts_out,
+			struct obs_source_audio_mix *audio_output,
+			uint32_t mixers, size_t channels, size_t sample_rate);
 };
 
 EXPORT void obs_register_source_s(const struct obs_source_info *info,

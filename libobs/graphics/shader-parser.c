@@ -28,6 +28,12 @@ enum gs_shader_param_type get_shader_param_type(const char *type)
 		return GS_SHADER_PARAM_VEC3;
 	else if (strcmp(type, "float4") == 0)
 		return GS_SHADER_PARAM_VEC4;
+	else if (strcmp(type, "int2") == 0)
+		return GS_SHADER_PARAM_INT2;
+	else if (strcmp(type, "int3") == 0)
+		return GS_SHADER_PARAM_INT3;
+	else if (strcmp(type, "int4") == 0)
+		return GS_SHADER_PARAM_INT4;
 	else if (astrcmp_n(type, "texture", 7) == 0)
 		return GS_SHADER_PARAM_TEXTURE;
 	else if (strcmp(type, "float4x4") == 0)
@@ -112,8 +118,8 @@ void shader_sampler_convert(struct shader_sampler *ss,
 			info->address_w = get_address_mode(value);
 		else if (astrcmpi(state, "MaxAnisotropy") == 0)
 			info->max_anisotropy = (int)strtol(value, NULL, 10);
-		/*else if (astrcmpi(state, "BorderColor") == 0)
-			// TODO */
+		else if (astrcmpi(state, "BorderColor") == 0)
+			info->border_color = strtol(value + 1, NULL, 16);
 	}
 }
 
@@ -131,7 +137,7 @@ static int sp_parse_sampler_state_item(struct shader_parser *sp,
 	ret = cf_next_token_should_be(&sp->cfp, "=", ";", NULL);
 	if (ret != PARSE_SUCCESS) goto fail;
 
-	ret = cf_next_name(&sp->cfp, &value, "value name", ";");
+	ret = cf_next_token_copy(&sp->cfp, &value);
 	if (ret != PARSE_SUCCESS) goto fail;
 
 	ret = cf_next_token_should_be(&sp->cfp, ";", ";", NULL);

@@ -523,10 +523,19 @@ cleanup:
 			info->free_type_data(info->type_data);            \
 	} while (false)
 
+#define source_warn(format, ...) \
+	blog(LOG_WARNING, "obs_register_source: " format, ##__VA_ARGS__)
+#define output_warn(format, ...) \
+	blog(LOG_WARNING, "obs_register_output: " format, ##__VA_ARGS__)
+#define encoder_warn(format, ...) \
+	blog(LOG_WARNING, "obs_register_encoder: " format, ##__VA_ARGS__)
+#define service_warn(format, ...) \
+	blog(LOG_WARNING, "obs_register_service: " format, ##__VA_ARGS__)
+
 void obs_register_source_s(const struct obs_source_info *info, size_t size)
 {
 	struct obs_source_info data = {0};
-	struct darray *array;
+	struct darray *array = NULL;
 
 	if (info->type == OBS_SOURCE_TYPE_INPUT) {
 		array = &obs->input_types.da;
@@ -534,37 +543,15 @@ void obs_register_source_s(const struct obs_source_info *info, size_t size)
 		array = &obs->filter_types.da;
 	} else if (info->type == OBS_SOURCE_TYPE_TRANSITION) {
 		array = &obs->transition_types.da;
-	} else {
-		blog(LOG_ERROR, "Tried to register unknown source type: %u",
+	} else if (info->type != OBS_SOURCE_TYPE_SCENE) {
+		source_warn("Tried to register unknown source type: %u",
 				info->type);
 		goto error;
 	}
 
-	if (find_source(array, info->id)) {
-		blog(LOG_WARNING, "Source d '%s' already exists!  "
+	if (get_source_info(info->id)) {
+		source_warn("Source '%s' already exists!  "
 		                  "Duplicate library?", info->id);
-		goto error;
-	}
-
-#define CHECK_REQUIRED_VAL_(info, val, func) \
-	CHECK_REQUIRED_VAL(struct obs_source_info, info, val, func)
-	CHECK_REQUIRED_VAL_(info, get_name, obs_register_source);
-	CHECK_REQUIRED_VAL_(info, create,   obs_register_source);
-	CHECK_REQUIRED_VAL_(info, destroy,  obs_register_source);
-
-	if (info->type == OBS_SOURCE_TYPE_INPUT          &&
-	    (info->output_flags & OBS_SOURCE_VIDEO) != 0 &&
-	    (info->output_flags & OBS_SOURCE_ASYNC) == 0) {
-		CHECK_REQUIRED_VAL_(info, get_width,  obs_register_source);
-		CHECK_REQUIRED_VAL_(info, get_height, obs_register_source);
-	}
-#undef CHECK_REQUIRED_VAL_
-
-	if (size > sizeof(data)) {
-		blog(LOG_ERROR, "Tried to register obs_source_info with size "
-				"%llu which is more than libobs currently "
-				"supports (%llu)", (long long unsigned)size,
-				(long long unsigned)sizeof(data));
 		goto error;
 	}
 
@@ -576,7 +563,62 @@ void obs_register_source_s(const struct obs_source_info *info, size_t size)
 			data.output_flags |= OBS_SOURCE_ASYNC;
 	}
 
-	darray_push_back(sizeof(struct obs_source_info), array, &data);
+	if (data.type == OBS_SOURCE_TYPE_TRANSITION) {
+		if (data.get_width)
+			source_warn("get_width ignored registering "
+					"transition '%s'",
+					data.id);
+		if (data.get_height)
+			source_warn("get_height ignored registering "
+					"transition '%s'",
+					data.id);
+		data.output_flags |= OBS_SOURCE_COMPOSITE | OBS_SOURCE_VIDEO |
+			OBS_SOURCE_CUSTOM_DRAW;
+	}
+
+	if ((data.output_flags & OBS_SOURCE_COMPOSITE) != 0) {
+		if ((data.output_flags & OBS_SOURCE_AUDIO) != 0) {
+			source_warn("Source '%s': Composite sources "
+					"cannot be audio sources", info->id);
+			goto error;
+		}
+		if ((data.output_flags & OBS_SOURCE_ASYNC) != 0) {
+			source_warn("Source '%s': Composite sources "
+					"cannot be async sources", info->id);
+			goto error;
+		}
+	}
+
+#define CHECK_REQUIRED_VAL_(info, val, func) \
+	CHECK_REQUIRED_VAL(struct obs_source_info, info, val, func)
+	CHECK_REQUIRED_VAL_(info, get_name, obs_register_source);
+	CHECK_REQUIRED_VAL_(info, create,   obs_register_source);
+	CHECK_REQUIRED_VAL_(info, destroy,  obs_register_source);
+
+	if (info->type != OBS_SOURCE_TYPE_FILTER         &&
+	    info->type != OBS_SOURCE_TYPE_TRANSITION     &&
+	    (info->output_flags & OBS_SOURCE_VIDEO) != 0 &&
+	    (info->output_flags & OBS_SOURCE_ASYNC) == 0) {
+		CHECK_REQUIRED_VAL_(info, get_width,  obs_register_source);
+		CHECK_REQUIRED_VAL_(info, get_height, obs_register_source);
+	}
+
+	if ((data.output_flags & OBS_SOURCE_COMPOSITE) != 0) {
+		CHECK_REQUIRED_VAL_(info, audio_render, obs_register_source);
+	}
+#undef CHECK_REQUIRED_VAL_
+
+	if (size > sizeof(data)) {
+		source_warn("Tried to register obs_source_info with size "
+				"%llu which is more than libobs currently "
+				"supports (%llu)", (long long unsigned)size,
+				(long long unsigned)sizeof(data));
+		goto error;
+	}
+
+	if (array)
+		darray_push_back(sizeof(struct obs_source_info), array, &data);
+	da_push_back(obs->source_types, &data);
 	return;
 
 error:
@@ -586,7 +628,7 @@ error:
 void obs_register_output_s(const struct obs_output_info *info, size_t size)
 {
 	if (find_output(info->id)) {
-		blog(LOG_WARNING, "Output id '%s' already exists!  "
+		output_warn("Output id '%s' already exists!  "
 		                  "Duplicate library?", info->id);
 		goto error;
 	}
@@ -622,7 +664,7 @@ error:
 void obs_register_encoder_s(const struct obs_encoder_info *info, size_t size)
 {
 	if (find_encoder(info->id)) {
-		blog(LOG_WARNING, "Encoder id '%s' already exists!  "
+		encoder_warn("Encoder id '%s' already exists!  "
 		                  "Duplicate library?", info->id);
 		goto error;
 	}
@@ -648,7 +690,7 @@ error:
 void obs_register_service_s(const struct obs_service_info *info, size_t size)
 {
 	if (find_service(info->id)) {
-		blog(LOG_WARNING, "Service id '%s' already exists!  "
+		service_warn("Service id '%s' already exists!  "
 		                  "Duplicate library?", info->id);
 		goto error;
 	}

@@ -58,6 +58,13 @@ if(WIN32)
 		util/threading-windows.c
 		util/pipe-windows.c
 		util/platform-windows.c)
+	set(libobs_PLATFORM_HEADERS
+		util/threading-windows.h
+		util/windows/win-version.h
+		util/windows/ComPtr.hpp
+		util/windows/CoTaskMemPtr.hpp
+		util/windows/HRError.hpp
+		util/windows/WinHandle.hpp)
 	set(libobs_PLATFORM_DEPS winmm)
 	if(MSVC)
 		set(libobs_PLATFORM_DEPS
@@ -72,11 +79,7 @@ elseif(APPLE)
 		util/platform-nix.c
 		util/platform-cocoa.m)
 	set(libobs_PLATFORM_HEADERS
-		util/windows/win-version.h
-		util/windows/ComPtr.hpp
-		util/windows/CoTaskMemPtr.hpp
-		util/windows/HRError.hpp
-		util/windows/WinHandle.hpp)
+		util/threading-posix.h)
 
 	set_source_files_properties(${libobs_PLATFORM_SOURCES}
 		PROPERTIES
@@ -110,6 +113,8 @@ elseif(UNIX)
 		util/threading-posix.c
 		util/pipe-posix.c
 		util/platform-nix.c)
+	set(libobs_PLATFORM_HEADERS
+		util/threading-posix.h)
 
 	if(DBUS_FOUND)
 		set(libobs_PLATFORM_SOURCES ${libobs_PLATFORM_SOURCES}
@@ -162,7 +167,9 @@ set(libobs_graphics_SOURCES
 	graphics/axisang.c
 	graphics/vec4.c
 	graphics/vec2.c
+	graphics/libnsgif/libnsgif.c
 	graphics/texture-render.c
+	graphics/image-file.c
 	graphics/bounds.c
 	graphics/matrix3.c
 	graphics/matrix4.c
@@ -184,7 +191,9 @@ set(libobs_graphics_HEADERS
 	graphics/matrix4.h
 	graphics/graphics.h
 	graphics/graphics-internal.h
+	graphics/libnsgif/libnsgif.h
 	graphics/device-exports.h
+	graphics/image-file.h
 	graphics/vec2.h
 	graphics/vec4.h
 	graphics/matrix3.h
@@ -242,6 +251,7 @@ set(libobs_util_HEADERS
 	util/vc/vc_stdint.h
 	util/bmem.h
 	util/c99defs.h
+	util/util_uint128.h
 	util/cf-parser.h
 	util/threading.h
 	util/pipe.h
@@ -263,6 +273,8 @@ set(libobs_libobs_SOURCES
 	obs-encoder.c
 	obs-service.c
 	obs-source.c
+	obs-source-deinterlace.c
+	obs-source-transition.c
 	obs-output.c
 	obs-output-delay.c
 	obs.c
@@ -274,6 +286,7 @@ set(libobs_libobs_SOURCES
 	obs-display.c
 	obs-view.c
 	obs-scene.c
+	obs-audio.c
 	obs-video.c)
 set(libobs_libobs_HEADERS
 	${libobs_PLATFORM_HEADERS}

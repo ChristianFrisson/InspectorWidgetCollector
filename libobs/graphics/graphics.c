@@ -896,6 +896,23 @@ gs_shader_t *gs_pixelshader_create_from_file(const char *file,
 	return shader;
 }
 
+gs_texture_t *gs_texture_create_from_file(const char *file)
+{
+	enum gs_color_format format;
+	uint32_t cx;
+	uint32_t cy;
+	uint8_t *data = gs_create_texture_file_data(file, &format, &cx, &cy);
+	gs_texture_t *tex = NULL;
+
+	if (data) {
+		tex = gs_texture_create(cx, cy, format, 1,
+				(const uint8_t**)&data, 0);
+		bfree(data);
+	}
+
+	return tex;
+}
+
 static inline void assign_sprite_rect(float *start, float *end, float size,
 		bool flip)
 {
@@ -965,19 +982,24 @@ void gs_draw_sprite(gs_texture_t *tex, uint32_t flip, uint32_t width,
 	float fcx, fcy;
 	struct gs_vb_data *data;
 
-	if (!gs_valid_p("gs_draw_sprite", tex))
-		return;
-
-	if (gs_get_texture_type(tex) != GS_TEXTURE_2D) {
-		blog(LOG_ERROR, "A sprite must be a 2D texture");
-		return;
+	if (tex) {
+		if (gs_get_texture_type(tex) != GS_TEXTURE_2D) {
+			blog(LOG_ERROR, "A sprite must be a 2D texture");
+			return;
+		}
+	} else {
+		if (!width || !height) {
+			blog(LOG_ERROR, "A sprite cannot be drawn without "
+					"a width/height");
+			return;
+		}
 	}
 
 	fcx = width  ? (float)width  : (float)gs_texture_get_width(tex);
 	fcy = height ? (float)height : (float)gs_texture_get_height(tex);
 
 	data = gs_vertexbuffer_get_data(graphics->sprite_buffer);
-	if (gs_texture_is_rect(tex))
+	if (tex && gs_texture_is_rect(tex))
 		build_sprite_rect(data, tex, fcx, fcy, flip);
 	else
 		build_sprite_norm(data, fcx, fcy, flip);
@@ -2065,6 +2087,16 @@ void gs_shader_set_default(gs_sparam_t *param)
 		return;
 
 	graphics->exports.gs_shader_set_default(param);
+}
+
+void gs_shader_set_next_sampler(gs_sparam_t *param, gs_samplerstate_t *sampler)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid_p("gs_shader_set_next_sampler", param))
+		return;
+
+	graphics->exports.gs_shader_set_next_sampler(param, sampler);
 }
 
 void gs_texture_destroy(gs_texture_t *tex)

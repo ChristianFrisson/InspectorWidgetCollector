@@ -22,6 +22,8 @@
 #include <string>
 #include <vector>
 
+class QMainWindow;
+
 struct MonitorInfo {
 	int32_t  x, y;
 	uint32_t cx, cy;
@@ -43,7 +45,15 @@ std::string GetDefaultVideoSavePath();
 
 std::vector<std::string> GetPreferredLocales();
 
+bool IsAlwaysOnTop(QMainWindow *window);
+void SetAlwaysOnTop(QMainWindow *window, bool enable);
+
 #ifdef _WIN32
 uint32_t GetWindowsVersion();
 void SetAeroEnabled(bool enable);
+void SetProcessPriority(const char *priority);
+#endif
+
+#ifdef __APPLE__
+void EnableOSXVSync(bool enable);
 #endif

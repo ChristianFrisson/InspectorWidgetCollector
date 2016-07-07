@@ -57,6 +57,11 @@ static string currentLogFile;
 static string lastLogFile;
 
 static bool portable_mode = false;
+bool opt_start_streaming = false;
+bool opt_start_recording = false;
+string opt_starting_collection;
+string opt_starting_profile;
+string opt_starting_scene;
 
 QObject *CreateShortcutFilter()
 {
@@ -310,7 +315,7 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 	if (log_level <= LOG_INFO)
 		LogStringChunk(logFile, str);
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(OBS_DEBUGBREAK_ON_ERROR)
 	if (log_level <= LOG_ERROR && IsDebuggerPresent())
 		__debugbreak();
 #endif
@@ -323,6 +328,8 @@ bool OBSApp::InitGlobalConfigDefaults()
 	config_set_default_string(globalConfig, "General", "Language",
 			DEFAULT_LANG);
 	config_set_default_uint(globalConfig, "General", "MaxLogs", 10);
+	config_set_default_string(globalConfig, "General", "ProcessPriority",
+			"Normal");
 
 #if _WIN32
 	config_set_default_string(globalConfig, "Video", "Renderer",
@@ -333,6 +340,38 @@ bool OBSApp::InitGlobalConfigDefaults()
 
 	config_set_default_bool(globalConfig, "BasicWindow", "PreviewEnabled",
 			true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"PreviewProgramMode", false);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"SceneDuplicationMode", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"SwapScenesMode", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"SnappingEnabled", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"ScreenSnapping", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"SourceSnapping", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"CenterSnapping", false);
+	config_set_default_double(globalConfig, "BasicWindow",
+			"SnapDistance", 10.0);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"RecordWhenStreaming", false);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"KeepRecordingWhenStreamStops", false);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"ShowTransitions", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"ShowListboxToolbars", true);
+	config_set_default_bool(globalConfig, "BasicWindow",
+			"ShowStatusBar", true);
+
+#ifdef __APPLE__
+	config_set_default_bool(globalConfig, "Video", "DisableOSXVSync", true);
+	config_set_default_bool(globalConfig, "Video", "ResetOSXVSyncOnExit",
+			true);
+#endif
 	return true;
 }
 
@@ -396,6 +435,97 @@ static bool MakeUserProfileDirs()
 	return true;
 }
 
+static string GetProfileDirFromName(const char *name)
+{
+	string outputPath;
+	os_glob_t *glob;
+	char path[512];
+
+	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
+		return outputPath;
+
+	strcat(path, "/*.*");
+
+	if (os_glob(path, 0, &glob) != 0)
+		return outputPath;
+
+	for (size_t i = 0; i < glob->gl_pathc; i++) {
+		struct os_globent ent = glob->gl_pathv[i];
+		if (!ent.directory)
+			continue;
+
+		strcpy(path, ent.path);
+		strcat(path, "/basic.ini");
+
+		ConfigFile config;
+		if (config.Open(path, CONFIG_OPEN_EXISTING) != 0)
+			continue;
+
+		const char *curName = config_get_string(config, "General",
+				"Name");
+		if (astrcmpi(curName, name) == 0) {
+			outputPath = ent.path;
+			break;
+		}
+	}
+
+	os_globfree(glob);
+
+	if (!outputPath.empty()) {
+		replace(outputPath.begin(), outputPath.end(), '\\', '/');
+		const char *start = strrchr(outputPath.c_str(), '/');
+		if (start)
+			outputPath.erase(0, start - outputPath.c_str() + 1);
+	}
+
+	return outputPath;
+}
+
+static string GetSceneCollectionFileFromName(const char *name)
+{
+	string outputPath;
+	os_glob_t *glob;
+	char path[512];
+
+	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes") <= 0)
+		return outputPath;
+
+	strcat(path, "/*.json");
+
+	if (os_glob(path, 0, &glob) != 0)
+		return outputPath;
+
+	for (size_t i = 0; i < glob->gl_pathc; i++) {
+		struct os_globent ent = glob->gl_pathv[i];
+		if (ent.directory)
+			continue;
+
+		obs_data_t *data =
+			obs_data_create_from_json_file_safe(ent.path, "bak");
+		const char *curName = obs_data_get_string(data, "name");
+
+		if (astrcmpi(name, curName) == 0) {
+			outputPath = ent.path;
+			obs_data_release(data);
+			break;
+		}
+
+		obs_data_release(data);
+	}
+
+	os_globfree(glob);
+
+	if (!outputPath.empty()) {
+		outputPath.resize(outputPath.size() - 5);
+		replace(outputPath.begin(), outputPath.end(), '\\', '/');
+		const char *start = strrchr(outputPath.c_str(), '/');
+		if (start)
+			outputPath.erase(0, start - outputPath.c_str() + 1);
+	}
+
+	return outputPath;
+}
+
 bool OBSApp::InitGlobalConfig()
 {
 	char path[512];
@@ -410,6 +540,30 @@ bool OBSApp::InitGlobalConfig()
 	if (errorcode != CONFIG_SUCCESS) {
 		OBSErrorBox(NULL, "Failed to open global.ini: %d", errorcode);
 		return false;
+	}
+
+	if (!opt_starting_collection.empty()) {
+		string path = GetSceneCollectionFileFromName(
+				opt_starting_collection.c_str());
+		if (!path.empty()) {
+			config_set_string(globalConfig,
+					"Basic", "SceneCollection",
+					opt_starting_collection.c_str());
+			config_set_string(globalConfig,
+					"Basic", "SceneCollectionFile",
+					path.c_str());
+		}
+	}
+
+	if (!opt_starting_profile.empty()) {
+		string path = GetProfileDirFromName(
+				opt_starting_profile.c_str());
+		if (!path.empty()) {
+			config_set_string(globalConfig, "Basic", "Profile",
+					opt_starting_profile.c_str());
+			config_set_string(globalConfig, "Basic", "ProfileDir",
+					path.c_str());
+		}
 	}
 
 	return InitGlobalConfigDefaults();
@@ -530,6 +684,15 @@ OBSApp::OBSApp(int &argc, char **argv, profiler_name_store_t *store)
 
 OBSApp::~OBSApp()
 {
+#ifdef __APPLE__
+	bool vsyncDiabled = config_get_bool(globalConfig, "Video",
+			"DisableOSXVSync");
+	bool resetVSync = config_get_bool(globalConfig, "Video",
+			"ResetOSXVSyncOnExit");
+	if (vsyncDiabled && resetVSync)
+		EnableOSXVSync(true);
+#endif
+
 	os_inhibit_sleep_set_active(sleepInhibitor, false);
 	os_inhibit_sleep_destroy(sleepInhibitor);
 }
@@ -638,6 +801,11 @@ void OBSApp::AppInit()
 			Str("Untitled"));
 	config_set_default_string(globalConfig, "Basic", "SceneCollectionFile",
 			Str("Untitled"));
+
+#ifdef __APPLE__
+	if (config_get_bool(globalConfig, "Video", "DisableOSXVSync"))
+		EnableOSXVSync(false);
+#endif
 
 	move_basic_to_profiles();
 	move_basic_to_scene_collections();
@@ -909,6 +1077,84 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 	return string(file);
 }
 
+string GenerateSpecifiedFilename(const char *extension, bool noSpace,
+		const char *format)
+{
+	time_t now = time(0);
+	struct tm *cur_time;
+	cur_time = localtime(&now);
+
+	const size_t spec_count = 23;
+	const char *spec[][2] = {
+		{"%CCYY", "%Y"},
+		{"%YY",   "%y"},
+		{"%MM",   "%m"},
+		{"%DD",   "%d"},
+		{"%hh",   "%H"},
+		{"%mm",   "%M"},
+		{"%ss",   "%S"},
+		{"%%",    "%%"},
+
+		{"%a",    ""},
+		{"%A",    ""},
+		{"%b",    ""},
+		{"%B",    ""},
+		{"%d",    ""},
+		{"%H",    ""},
+		{"%I",    ""},
+		{"%m",    ""},
+		{"%M",    ""},
+		{"%p",    ""},
+		{"%S",    ""},
+		{"%y",    ""},
+		{"%Y",    ""},
+		{"%z",    ""},
+		{"%Z",    ""},
+	};
+
+	char convert[128] = {};
+	string sf = format;
+	string c;
+	size_t pos = 0, len;
+
+	while (pos < sf.length()) {
+		len = 0;
+		for (size_t i = 0; i < spec_count && len == 0; i++) {
+
+			if (sf.find(spec[i][0], pos) == pos) {
+				if (strlen(spec[i][1]))
+					strftime(convert, sizeof(convert),
+							spec[i][1], cur_time);
+				else
+					strftime(convert, sizeof(convert),
+							spec[i][0], cur_time);
+
+				len = strlen(spec[i][0]);
+
+				c = convert;
+				if (c.length() && c.find_first_not_of(' ') !=
+						std::string::npos)
+					sf.replace(pos, len, convert);
+			}
+		}
+
+		if (len)
+			pos += strlen(convert);
+		else if (!len && sf.at(pos) == '%')
+			sf.erase(pos,1);
+		else
+			pos++;
+	}
+
+	if (noSpace)
+		replace(sf.begin(), sf.end(), ' ', '_');
+
+	sf += '.';
+	sf += extension;
+
+	return (sf.length() < 256) ? sf : sf.substr(0, 255);
+}
+
 vector<pair<string, string>> GetLocaleNames()
 {
 	string path;
@@ -1090,6 +1336,7 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	char *text = new char[MAX_CRASH_REPORT_SIZE];
 
 	vsnprintf(text, MAX_CRASH_REPORT_SIZE, format, args);
+	text[MAX_CRASH_REPORT_SIZE - 1] = 0;
 
 	delete_oldest_file("obs-studio/crashes");
 
@@ -1099,7 +1346,8 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	BPtr<char> path(GetConfigPathPtr(name.c_str()));
 
 	fstream file;
-	file.open(path, ios_base::in | ios_base::out | ios_base::trunc);
+	file.open(path, ios_base::in | ios_base::out | ios_base::trunc |
+			ios_base::binary);
 	file << text;
 	file.close();
 
@@ -1188,6 +1436,16 @@ char *GetConfigPathPtr(const char *name)
 	}
 }
 
+int GetProgramDataPath(char *path, size_t size, const char *name)
+{
+	return os_get_program_data_path(path, size, name);
+}
+
+char *GetProgramDataPathPtr(const char *name)
+{
+	return os_get_program_data_path_ptr(name);
+}
+
 bool GetFileSafeName(const char *name, std::string &file)
 {
 	size_t base_len = strlen(name);
@@ -1245,6 +1503,23 @@ bool GetClosestUnusedFileName(std::string &path, const char *extension)
 	} while (os_file_exists(path.c_str()));
 
 	return true;
+}
+
+bool WindowPositionValid(int x, int y)
+{
+	vector<MonitorInfo> monitors;
+	GetMonitors(monitors);
+
+	for (auto &monitor : monitors) {
+		int br_x = monitor.x + monitor.cx;
+		int br_y = monitor.y + monitor.cy;
+
+		if (x >= monitor.x && x < br_x &&
+		    y >= monitor.y && y < br_y)
+			return true;
+	}
+
+	return false;
 }
 
 static inline bool arg_is(const char *arg,
@@ -1374,6 +1649,51 @@ static bool update_reconnect(ConfigFile &config)
 	return false;
 }
 
+static void convert_x264_settings(obs_data_t *data)
+{
+	bool use_bufsize = obs_data_get_bool(data, "use_bufsize");
+
+	if (use_bufsize) {
+		int buffer_size = (int)obs_data_get_int(data, "buffer_size");
+		if (buffer_size == 0)
+			obs_data_set_string(data, "rate_control", "CRF");
+	}
+}
+
+static void convert_14_2_encoder_setting(const char *encoder, const char *file)
+{
+	obs_data_t *data = obs_data_create_from_json_file_safe(file, "bak");
+	obs_data_item_t *cbr_item = obs_data_item_byname(data, "cbr");
+	obs_data_item_t *rc_item = obs_data_item_byname(data, "rate_control");
+	bool modified = false;
+	bool cbr = true;
+
+	if (cbr_item) {
+		cbr = obs_data_item_get_bool(cbr_item);
+		obs_data_item_unset_user_value(cbr_item);
+
+		obs_data_set_string(data, "rate_control", cbr ? "CBR" : "VBR");
+
+		modified = true;
+	}
+
+	if (!rc_item && astrcmpi(encoder, "obs_x264") == 0) {
+		if (!cbr_item)
+			obs_data_set_string(data, "rate_control", "CBR");
+		else if (!cbr)
+			convert_x264_settings(data);
+
+		modified = true;
+	}
+
+	if (modified)
+		obs_data_save_json_safe(data, file, "tmp", "bak");
+
+	obs_data_item_release(&rc_item);
+	obs_data_item_release(&cbr_item);
+	obs_data_release(data);
+}
+
 static void upgrade_settings(void)
 {
 	char path[512];
@@ -1391,7 +1711,8 @@ static void upgrade_settings(void)
 	struct os_dirent *ent = os_readdir(dir);
 
 	while (ent) {
-		if (ent->directory) {
+		if (ent->directory && strcmp(ent->d_name, ".") != 0 &&
+				strcmp(ent->d_name, "..") != 0) {
 			strcat(path, "/");
 			strcat(path, ent->d_name);
 			strcat(path, "/basic.ini");
@@ -1406,6 +1727,28 @@ static void upgrade_settings(void)
 					config_save_safe(config, "tmp",
 							nullptr);
 				}
+			}
+
+
+			if (config) {
+				const char *sEnc = config_get_string(config,
+						"AdvOut", "Encoder");
+				const char *rEnc = config_get_string(config,
+						"AdvOut", "RecEncoder");
+
+				/* replace "cbr" option with "rate_control" for
+				 * each profile's encoder data */
+				path[pathlen] = 0;
+				strcat(path, "/");
+				strcat(path, ent->d_name);
+				strcat(path, "/recordEncoder.json");
+				convert_14_2_encoder_setting(rEnc, path);
+
+				path[pathlen] = 0;
+				strcat(path, "/");
+				strcat(path, ent->d_name);
+				strcat(path, "/streamEncoder.json");
+				convert_14_2_encoder_setting(sEnc, path);
 			}
 
 			path[pathlen] = 0;
@@ -1437,6 +1780,21 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; i++) {
 		if (arg_is(argv[i], "--portable", "-p")) {
 			portable_mode = true;
+
+		} else if (arg_is(argv[i], "--startstreaming", nullptr)) {
+			opt_start_streaming = true;
+
+		} else if (arg_is(argv[i], "--startrecording", nullptr)) {
+			opt_start_recording = true;
+
+		} else if (arg_is(argv[i], "--collection", nullptr)) {
+			if (++i < argc) opt_starting_collection = argv[i];
+
+		} else if (arg_is(argv[i], "--profile", nullptr)) {
+			if (++i < argc) opt_starting_profile = argv[i];
+
+		} else if (arg_is(argv[i], "--scene", nullptr)) {
+			if (++i < argc) opt_starting_scene = argv[i];
 		}
 	}
 

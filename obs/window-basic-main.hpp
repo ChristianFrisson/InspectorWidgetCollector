@@ -20,7 +20,6 @@
 #include <QBuffer>
 #include <QAction>
 #include <obs.hpp>
-#include <unordered_map>
 #include <vector>
 #include <memory>
 #include "window-main.hpp"
@@ -31,6 +30,7 @@
 #include "window-basic-filters.hpp"
 
 #include <util/platform.h>
+#include <util/threading.h>
 #include <util/util.hpp>
 
 #include <QPointer>
@@ -49,6 +49,10 @@ class QNetworkReply;
 
 #define SIMPLE_ENCODER_X264                    "x264"
 #define SIMPLE_ENCODER_X264_LOWCPU             "x264_lowcpu"
+#define SIMPLE_ENCODER_QSV                     "qsv"
+#define SIMPLE_ENCODER_NVENC                   "nvenc"
+
+#define PREVIEW_EDGE_SIZE 10
 
 struct BasicOutputHandler;
 
@@ -57,11 +61,27 @@ enum class QtDataRole {
 	OBSSignals,
 };
 
+struct QuickTransition {
+	QPushButton *button = nullptr;
+	OBSSource source;
+	obs_hotkey_id hotkey = 0;
+	int duration = 0;
+	int id = 0;
+
+	inline QuickTransition() {}
+	inline QuickTransition(OBSSource source_, int duration_, int id_)
+		: source   (source_),
+		  duration (duration_),
+		  id       (id_)
+	{}
+};
+
 class OBSBasic : public OBSMainWindow {
 	Q_OBJECT
 
 	friend class OBSBasicPreview;
 	friend class OBSBasicStatusBar;
+	friend class OBSBasicSourceSelect;
 
 	enum class MoveDir {
 		Up,
@@ -71,8 +91,6 @@ class OBSBasic : public OBSMainWindow {
 	};
 
 private:
-	std::unordered_map<obs_source_t*, int> sourceSceneRefs;
-
 	std::vector<VolControl*> volumes;
 
 	std::vector<OBSSignal> signalHandlers;
@@ -80,6 +98,7 @@ private:
 	bool loaded = false;
 	long disableSaving = 1;
 	bool projectChanged = false;
+	bool previewEnabled = true;
 
 	QPointer<QThread> updateCheckThread;
 	QPointer<QThread> logUploadThread;
@@ -97,6 +116,10 @@ private:
 	std::unique_ptr<BasicOutputHandler> outputHandler;
 
 	gs_vertbuffer_t *box = nullptr;
+	gs_vertbuffer_t *boxLeft = nullptr;
+	gs_vertbuffer_t *boxTop = nullptr;
+	gs_vertbuffer_t *boxRight = nullptr;
+	gs_vertbuffer_t *boxBottom = nullptr;
 	gs_vertbuffer_t *circle = nullptr;
 
 	bool          sceneChanging = false;
@@ -170,7 +193,6 @@ private:
 
 	void CloseDialogs();
 	void ClearSceneData();
-	void CleanupUnusedSources();
 
 	void Nudge(int dist, MoveDir dir);
 	void OpenProjector(obs_source_t *source, int monitor);
@@ -193,8 +215,71 @@ private:
 
 	void SaveProjectNow();
 
+	QListWidgetItem *GetTopSelectedSourceItem();
+
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys;
 	obs_hotkey_id forceStreamingStopHotkey;
+
+	void InitDefaultTransitions();
+	void InitTransition(obs_source_t *transition);
+	void TransitionToScene(obs_scene_t *scene, bool force = false);
+	void TransitionToScene(obs_source_t *scene, bool force = false);
+	obs_source_t *FindTransition(const char *name);
+	void SetTransition(obs_source_t *transition);
+	OBSSource GetCurrentTransition();
+	obs_data_array_t *SaveTransitions();
+	void LoadTransitions(obs_data_array_t *transitions);
+
+	obs_source_t *fadeTransition;
+
+	void CreateProgramDisplay();
+	void CreateProgramOptions();
+	void AddQuickTransitionId(int id);
+	void AddQuickTransition();
+	void AddQuickTransitionHotkey(QuickTransition *qt);
+	void RemoveQuickTransitionHotkey(QuickTransition *qt);
+	void LoadQuickTransitions(obs_data_array_t *array);
+	obs_data_array_t *SaveQuickTransitions();
+	void RefreshQuickTransitions();
+	void CreateDefaultQuickTransitions();
+
+	QuickTransition *GetQuickTransition(int id);
+	int GetQuickTransitionIdx(int id);
+	QMenu *CreateTransitionMenu(QWidget *parent, QuickTransition *qt);
+	void ClearQuickTransitions();
+	void QuickTransitionClicked();
+	void QuickTransitionChange();
+	void QuickTransitionChangeDuration(int value);
+	void QuickTransitionRemoveClicked();
+
+	void SetPreviewProgramMode(bool enabled);
+	void ResizeProgram(uint32_t cx, uint32_t cy);
+	void SetCurrentScene(obs_scene_t *scene, bool force = false);
+	void SetCurrentScene(obs_source_t *scene, bool force = false);
+	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
+
+	std::vector<QuickTransition> quickTransitions;
+	QPointer<QWidget> programOptions;
+	QPointer<OBSQTDisplay> program;
+	OBSWeakSource lastScene;
+	OBSWeakSource swapScene;
+	OBSWeakSource programScene;
+	bool editPropertiesMode = false;
+	bool sceneDuplicationMode = true;
+	bool swapScenesMode = true;
+	volatile bool previewProgramMode = false;
+	obs_hotkey_id togglePreviewProgramHotkey = 0;
+	obs_hotkey_id transitionHotkey = 0;
+	int quickTransitionIdCounter = 1;
+
+	int   programX = 0,  programY = 0;
+	int   programCX = 0, programCY = 0;
+	float programScale = 0.0f;
+
+	inline bool IsPreviewProgramMode() const
+	{
+		return os_atomic_load_bool(&previewProgramMode);
+	}
 
 public slots:
 	void StartStreaming();
@@ -205,12 +290,14 @@ public slots:
 	void StreamDelayStopping(int sec);
 
 	void StreamingStart();
+	void StreamStopping();
 	void StreamingStop(int errorcode);
 
 	void StartRecording();
 	void StopRecording();
 
 	void RecordingStart();
+	void RecordStopping();
 	void RecordingStop(int code);
 
 	void SaveProjectDeferred();
@@ -221,7 +308,6 @@ private slots:
 	void RemoveSceneItem(OBSSceneItem item);
 	void AddScene(OBSSource source);
 	void RemoveScene(OBSSource source);
-	void UpdateSceneSelection(OBSSource source);
 	void RenameSources(QString newName, QString prevName);
 
 	void SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select);
@@ -233,9 +319,22 @@ private slots:
 	void RemoveSelectedScene();
 	void RemoveSelectedSceneItem();
 
+	void ToggleAlwaysOnTop();
+
 	void ReorderSources(OBSScene scene);
 
 	void ProcessHotkey(obs_hotkey_id id, bool pressed);
+
+	void AddTransition();
+	void RenameTransition();
+	void TransitionClicked();
+	void TransitionStopped();
+	void TriggerQuickTransition(int id);
+
+	void SetDeinterlacingMode();
+	void SetDeinterlacingOrder();
+
+	void SetScaleFilter();
 
 private:
 	/* OBS Callbacks */
@@ -244,12 +343,11 @@ private:
 	static void SceneItemRemoved(void *data, calldata_t *params);
 	static void SceneItemSelected(void *data, calldata_t *params);
 	static void SceneItemDeselected(void *data, calldata_t *params);
-	static void SourceAdded(void *data, calldata_t *params);
+	static void SourceLoaded(void *data, obs_source_t *source);
 	static void SourceRemoved(void *data, calldata_t *params);
 	static void SourceActivated(void *data, calldata_t *params);
 	static void SourceDeactivated(void *data, calldata_t *params);
 	static void SourceRenamed(void *data, calldata_t *params);
-	static void ChannelChanged(void *data, calldata_t *params);
 	static void RenderMain(void *data, uint32_t cx, uint32_t cy);
 
 	void ResizePreview(uint32_t cx, uint32_t cy);
@@ -264,10 +362,17 @@ private:
 public:
 	OBSScene      GetCurrentScene();
 
+	inline OBSSource GetCurrentSceneSource()
+	{
+		OBSScene curScene = GetCurrentScene();
+		return OBSSource(obs_scene_get_source(curScene));
+	}
+
 	obs_service_t *GetService();
 	void          SetService(obs_service_t *service);
 
-	bool StreamingActive();
+	bool StreamingActive() const;
+	bool Active() const;
 
 	int  ResetVideo();
 	bool ResetAudio();
@@ -298,14 +403,16 @@ public:
 
 	void ReorderSceneItem(obs_sceneitem_t *item, size_t idx);
 
+	QMenu *AddDeinterlacingMenu(obs_source_t *source);
+	QMenu *AddScaleFilteringMenu(obs_sceneitem_t *item);
 	void CreateSourcePopupMenu(QListWidgetItem *item, bool preview);
 
 	void UpdateTitleBar();
+	void UpdateSceneSelection(OBSSource source);
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
 	virtual void changeEvent(QEvent *event) override;
-	virtual void resizeEvent(QResizeEvent *event) override;
 
 private slots:
 	void on_actionShow_Recordings_triggered();
@@ -376,6 +483,19 @@ private slots:
 	void on_actionShowSettingsFolder_triggered();
 	void on_actionShowProfileFolder_triggered();
 
+	void on_actionAlwaysOnTop_triggered();
+
+	void on_toggleSceneTransitions_toggled(bool visible);
+	void on_toggleListboxToolbars_toggled(bool visible);
+	void on_toggleStatusBar_toggled(bool visible);
+
+	void on_transitions_currentIndexChanged(int index);
+	void on_transitionAdd_clicked();
+	void on_transitionRemove_clicked();
+	void on_transitionProps_clicked();
+
+	void on_modeSwitch_clicked();
+
 	void logUploadFinished(const QString &text, const QString &error);
 
 	void updateFileFinished(const QString &text, const QString &error);
@@ -396,6 +516,7 @@ private slots:
 	void OpenSceneFilters();
 	void OpenFilters();
 
+	void EnablePreviewDisplay(bool enable);
 	void TogglePreview();
 
 	void NudgeUp();

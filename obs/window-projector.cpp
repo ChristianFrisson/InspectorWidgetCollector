@@ -12,7 +12,7 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_)
 	                                Qt::Window | Qt::FramelessWindowHint),
 	  source                       (source_),
 	  removedSignal                (obs_source_get_signal_handler(source),
-	                                "removed", OBSSourceRemoved, this)
+	                                "remove", OBSSourceRemoved, this)
 {
 	setAttribute(Qt::WA_DeleteOnClose, true);
 
@@ -25,6 +25,14 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_)
 	};
 
 	connect(this, &OBSQTDisplay::DisplayCreated, addDrawCallback);
+
+	bool hideCursor = config_get_bool(GetGlobalConfig(),
+			"BasicWindow", "HideProjectorCursor");
+	if (hideCursor) {
+		QPixmap empty(16, 16);
+		empty.fill(Qt::transparent);
+		setCursor(QCursor(empty));
+	}
 
 	App()->IncrementSleepInhibition();
 }
