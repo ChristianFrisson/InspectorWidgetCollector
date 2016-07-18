@@ -39,7 +39,7 @@ char* GenerateEventsFilename(const char* path)
 	cur_time = localtime(&now);
 	snprintf(file,
 	         sizeof(file),
-	         "%s%c%d-%02d-%02d %02d-%02d-%02d.txt",
+             "%s%c%d-%02d-%02d-%02d-%02d-%02d.txt",
 	         path,
 	         slash,
 	         cur_time->tm_year+1900,
