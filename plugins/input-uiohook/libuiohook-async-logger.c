@@ -17,6 +17,7 @@
  */
 
 #include "libuiohook-async-logger.h"
+#include <util/platform.h>
 
 // Thread and mutex variables.
 #ifdef _WIN32
@@ -70,9 +71,11 @@ bool logger_proc(unsigned int level, const char *format, ...)
 void dispatch_proc(uiohook_event * const event)
 {
 	char buffer[256] = { 0 };
+    uint64_t clock = os_gettime_ns();
+
 	size_t length = snprintf(buffer, sizeof(buffer),
-	                         "id=%i,when=%" PRIu64 ",mask=0x%X",
-	                         event->type, event->time, event->mask);
+                             "id=%i,when=%" PRIu64 ",clock=%" PRIu64 ",mask=0x%X",
+                             event->type, event->time, clock, event->mask);
 
 	switch (event->type) {
 	case EVENT_HOOK_ENABLED:
