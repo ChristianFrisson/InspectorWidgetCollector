@@ -23,12 +23,15 @@
 #include <util/platform.h>
 
 #include <libavutil/opt.h>
+#include <libavutil/time.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 
 #include "obs-ffmpeg-formats.h"
 #include "closest-pixel-format.h"
 #include "obs-ffmpeg-compat.h"
+
+#include <sys/time.h>
 
 struct ffmpeg_cfg {
 	const char         *url;
@@ -79,6 +82,8 @@ struct ffmpeg_data {
 	struct ffmpeg_cfg  config;
 
 	bool               initialized;
+
+    FILE               *timestamps_file;
 };
 
 struct ffmpeg_output {
@@ -355,6 +360,35 @@ static inline bool init_streams(struct ffmpeg_data *data)
 	return true;
 }
 
+static void open_timestamps_file(struct ffmpeg_data *data)
+{
+    char* url_protocol = strrchr(data->config.url,':');
+    if(url_protocol != NULL){
+        blog(LOG_WARNING, "Can not create timestamps file for web service '%s'",
+                data->config.url);
+        return;
+    }
+
+    int url_len = strlen(data->config.url);
+    char* ext_ptr = strrchr(data->config.url,'.');
+    int ext_pos = ext_ptr-data->config.url+1;
+    int filename_len = (ext_ptr == NULL) ? url_len + 4 : ext_pos + 3;
+    int copy_len = (ext_ptr == NULL) ? url_len : ext_pos;
+    char timestamps_filename[filename_len];
+    strncpy(timestamps_filename, data->config.url,
+            copy_len);
+    timestamps_filename[filename_len - 4] = '.';
+    timestamps_filename[filename_len - 3] = 't';
+    timestamps_filename[filename_len - 2] = 's';
+    timestamps_filename[filename_len - 1] = 'v';
+    timestamps_filename[filename_len] = '\0';
+    data->timestamps_file = fopen (timestamps_filename, "w+");
+    blog(LOG_WARNING, "Opening timestamps file '%s'",
+            timestamps_filename);
+    if(data->timestamps_file)
+        setbuf(data->timestamps_file, NULL);
+}
+
 static inline bool open_output_file(struct ffmpeg_data *data)
 {
 	AVOutputFormat *format = data->output->oformat;
@@ -403,6 +437,8 @@ static inline bool open_output_file(struct ffmpeg_data *data)
 		return false;
 	}
 
+    open_timestamps_file(data);
+
 	av_dict_free(&dict);
 
 	return true;
@@ -430,6 +466,11 @@ static void close_audio(struct ffmpeg_data *data)
 	av_freep(&data->samples[0]);
 	avcodec_close(data->audio->codec);
 	av_frame_free(&data->aframe);
+}
+
+static void close_timestamps_file(struct ffmpeg_data *data)
+{
+    fclose(data->timestamps_file);
 }
 
 static void ffmpeg_data_free(struct ffmpeg_data *data)
@@ -495,6 +536,7 @@ static bool ffmpeg_data_init(struct ffmpeg_data *data,
 
 	memset(data, 0, sizeof(struct ffmpeg_data));
 	data->config = *config;
+    data->timestamps_file = 0;
 
 	if (!config->url || !*config->url)
 		return false;
@@ -648,9 +690,20 @@ static void receive_video(void *param, struct video_data *frame)
 	struct ffmpeg_output *output = param;
 	struct ffmpeg_data   *data   = &output->ff_data;
 
+    video_t *video = obs_output_video(output->output);
+
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
 	// codec doesn't support video or none configured
 	if (!data->video)
 		return;
+
+    uint64_t _time = av_gettime();
+
+    if(data->timestamps_file){
+        fprintf(data->timestamps_file, "%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n", data->total_frames, _time, frame->timestamp);
+    }
 
 	AVCodecContext *context = data->video->codec;
 	AVPacket packet = {0};
@@ -677,6 +730,8 @@ static void receive_video(void *param, struct video_data *frame)
 		packet.data          = data->dst_picture.data[0];
 		packet.size          = sizeof(AVPicture);
 
+        //packet.dts = packet.pts = av_rescale_q(_time, AV_TIME_BASE_Q, data->video->time_base);
+
 		pthread_mutex_lock(&output->write_mutex);
 		da_push_back(output->packets, &packet);
 		pthread_mutex_unlock(&output->write_mutex);
@@ -701,6 +756,8 @@ static void receive_video(void *param, struct video_data *frame)
 					context->time_base,
 					data->video->time_base);
 
+            //packet.dts = packet.pts = av_rescale_q(_time, AV_TIME_BASE_Q, data->video->time_base);
+
 			pthread_mutex_lock(&output->write_mutex);
 			da_push_back(output->packets, &packet);
 			pthread_mutex_unlock(&output->write_mutex);
@@ -713,7 +770,7 @@ static void receive_video(void *param, struct video_data *frame)
 	if (ret != 0) {
 		blog(LOG_WARNING, "receive_video: Error writing video: %s",
 				av_err2str(ret));
-	}
+    }
 
 	data->total_frames++;
 }
@@ -759,7 +816,7 @@ static void encode_audio(struct ffmpeg_output *output,
 	packet.duration = (int)av_rescale_q(packet.duration, context->time_base,
 			data->audio->time_base);
 	packet.stream_index = data->audio->index;
-
+	
 	pthread_mutex_lock(&output->write_mutex);
 	da_push_back(output->packets, &packet);
 	pthread_mutex_unlock(&output->write_mutex);
@@ -781,7 +838,7 @@ static bool prepare_audio(struct ffmpeg_data *data,
 			return false;
 
 		cutoff = data->start_timestamp - frame->timestamp;
-		output->timestamp += cutoff;
+        output->timestamp += cutoff;
 
 		cutoff = cutoff * (uint64_t)data->audio_samplerate /
 			1000000000;
