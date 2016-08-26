@@ -97,7 +97,7 @@ struct ffmpeg_output {
 	uint64_t           audio_start_ts;
 	uint64_t           video_start_ts;
 	uint64_t           stop_ts;
-	volatile bool      stopping;
+    volatile bool      stopping;
 
 	bool               write_thread_active;
 	pthread_mutex_t    write_mutex;
@@ -685,6 +685,26 @@ static inline void copy_data(AVPicture *pic, const struct video_data *frame,
 	}
 }
 
+static uint64_t get_packet_sys_dts(struct ffmpeg_output *output,
+        AVPacket *packet)
+{
+    struct ffmpeg_data *data = &output->ff_data;
+    uint64_t start_ts;
+
+    AVRational time_base;
+
+    if (data->video && data->video->index == packet->stream_index) {
+        time_base = data->video->time_base;
+        start_ts = output->video_start_ts;
+    } else {
+        time_base = data->audio->time_base;
+        start_ts = output->audio_start_ts;
+    }
+
+    return start_ts + (uint64_t)av_rescale_q(packet->dts,
+            time_base, (AVRational){1, 1000000000});
+}
+
 static void receive_video(void *param, struct video_data *frame)
 {
 	struct ffmpeg_output *output = param;
@@ -700,10 +720,6 @@ static void receive_video(void *param, struct video_data *frame)
 		return;
 
     uint64_t _time = av_gettime();
-
-    if(data->timestamps_file){
-        fprintf(data->timestamps_file, "%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n", data->total_frames, _time, frame->timestamp);
-    }
 
 	AVCodecContext *context = data->video->codec;
 	AVPacket packet = {0};
@@ -770,6 +786,12 @@ static void receive_video(void *param, struct video_data *frame)
 	if (ret != 0) {
 		blog(LOG_WARNING, "receive_video: Error writing video: %s",
 				av_err2str(ret));
+    }
+
+    uint64_t sys_ts = get_packet_sys_dts(output, &packet);
+    //printf("total_frames=%d sys_ts=%" PRIu64 " stop_ts=%" PRIu64 "\n",data->total_frames,sys_ts,output->stop_ts);
+    if (data->timestamps_file && ( output->stop_ts == 0 || sys_ts < output->stop_ts)) {
+        fprintf(data->timestamps_file, "%" PRIu64 "\t%" PRIu64 "\t%" PRIu64 "\n", data->total_frames, _time, frame->timestamp);
     }
 
 	data->total_frames++;
@@ -885,26 +907,6 @@ static void receive_audio(void *param, struct audio_data *frame)
 
 		encode_audio(output, context, data->audio_size);
 	}
-}
-
-static uint64_t get_packet_sys_dts(struct ffmpeg_output *output,
-		AVPacket *packet)
-{
-	struct ffmpeg_data *data = &output->ff_data;
-	uint64_t start_ts;
-
-	AVRational time_base;
-
-	if (data->video && data->video->index == packet->stream_index) {
-		time_base = data->video->time_base;
-		start_ts = output->video_start_ts;
-	} else {
-		time_base = data->audio->time_base;
-		start_ts = output->audio_start_ts;
-	}
-
-	return start_ts + (uint64_t)av_rescale_q(packet->dts,
-			time_base, (AVRational){1, 1000000000});
 }
 
 static int process_packet(struct ffmpeg_output *output)
@@ -1091,6 +1093,7 @@ static bool ffmpeg_output_start(void *data)
 	os_atomic_set_bool(&output->stopping, false);
 	output->audio_start_ts = 0;
 	output->video_start_ts = 0;
+    output->stop_ts = 0;
 
 	ret = pthread_create(&output->start_thread, NULL, start_thread, output);
 	return (output->connecting = (ret == 0));
