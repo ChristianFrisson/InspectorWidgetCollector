@@ -634,28 +634,26 @@ bool SimpleOutput::StartRecording()
 
 	obs_data_release(settings);
 
-	const char *sources_started = 0;
-	bool output_started(false);
-	const char* errormsg = 0;
-	try {
-		sources_started = obs_start_sources();
-		errormsg = sources_started;
-		if(strlen(sources_started)==0){
-			output_started = obs_output_start(fileOutput);
-			if(!output_started){
-				errormsg = "Couldn't start the recording";
-				obs_stop_sources();
-			}
-		}
-	} catch (const char *error) {
-		errormsg = error;
-	}
+    const char *sources_start_error = 0;
+    bool output_started(false);
+    try {
+        sources_start_error = obs_start_sources();
+        if(!sources_start_error){
+            output_started = obs_output_start(fileOutput);
+            if(!output_started){
+                sources_start_error = "Couldn't start the recording";
+                obs_stop_sources();
+            }
+        }
+    } catch (const char *error) {
+        sources_start_error = error;
+    }
 
-	if(strlen(errormsg)>0){
-		blog(LOG_ERROR, "%s", errormsg);
-		OBSErrorBox(nullptr, "%s", errormsg);
-	}
-	return output_started && (strlen(sources_started)==0);
+    if(sources_start_error){
+        blog(LOG_ERROR, "%s", sources_start_error);
+        OBSErrorBox(nullptr, "%s", sources_start_error);
+    }
+    return output_started && !sources_start_error;
 }
 
 void SimpleOutput::StopStreaming()
@@ -1183,28 +1181,26 @@ bool AdvancedOutput::StartRecording()
 		obs_data_release(settings);
 	}
 
-	const char *sources_started = 0;
+    const char *sources_start_error = 0;
 	bool output_started(false);
-	const char* errormsg = 0;
 	try {
-		sources_started = obs_start_sources();
-		errormsg = sources_started;
-		if(strlen(sources_started)==0){
+        sources_start_error = obs_start_sources();
+        if(!sources_start_error){
 			output_started = obs_output_start(fileOutput);
 			if(!output_started){
-				errormsg = "Couldn't start the recording";
+                sources_start_error = "Couldn't start the recording";
 				obs_stop_sources();
 			}
 		}
 	} catch (const char *error) {
-		errormsg = error;
+        sources_start_error = error;
 	}
 
-	if(strlen(errormsg)>0){
-		blog(LOG_ERROR, "%s", errormsg);
-		OBSErrorBox(nullptr, "%s", errormsg);
+    if(sources_start_error){
+        blog(LOG_ERROR, "%s", sources_start_error);
+        OBSErrorBox(nullptr, "%s", sources_start_error);
 	}
-	return output_started && (strlen(sources_started)==0);
+    return output_started && !sources_start_error;
 }
 
 void AdvancedOutput::StopStreaming()

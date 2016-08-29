@@ -1665,12 +1665,14 @@ obs_data_array_t *obs_save_sources_filtered(obs_save_source_filter_cb cb,
 
 const char* obs_start_sources(void)
 {
+    struct obs_core_data *data = &obs->data;
     obs_source_t *source;
 
     if (!obs) return "obs not available";
 
-    pthread_mutex_lock(&obs->data.sources_mutex);
-    source = obs->data.first_source;
+    pthread_mutex_lock(&data->sources_mutex);
+
+    source = data->first_source;
 
     const char* status = 0;
     while (source && status == 0) {
@@ -1678,26 +1680,28 @@ const char* obs_start_sources(void)
         source = (obs_source_t*)source->context.next;
     }
 
-    pthread_mutex_unlock(&obs->data.sources_mutex);
+    pthread_mutex_unlock(&data->sources_mutex);
 
     return status;
 }
 
 void obs_stop_sources(void)
 {
+    struct obs_core_data *data = &obs->data;
     obs_source_t *source;
 
     if (!obs) return;
 
-    pthread_mutex_lock(&obs->data.sources_mutex);
-    source = obs->data.first_source;
+    pthread_mutex_lock(&data->sources_mutex);
+
+    source = data->first_source;
 
     while (source) {
         obs_stop_source(source);
         source = (obs_source_t*)source->context.next;
     }
 
-    pthread_mutex_unlock(&obs->data.sources_mutex);
+    pthread_mutex_unlock(&data->sources_mutex);
 }
 
 static bool save_source_filter(void *data, obs_source_t *source)
