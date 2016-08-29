@@ -1,5 +1,4 @@
 #include <obs-module.h>
-
 #include "platform.h"
 
 #include "libuiohook-async-logger.h"
@@ -71,7 +70,7 @@ static void input_uiohook_update(void *data, obs_data_t *settings)
 
 static void input_uiohook_defaults(obs_data_t *settings)
 {
-	obs_data_set_default_bool(settings, "recording", false);
+    obs_data_set_default_bool(settings, "recording", false);
 	const char* default_path = GetDefaultEventsSavePath();
 	obs_data_set_default_string(settings, "folder", default_path);
 	printf("path %s\n",default_path);
@@ -108,7 +107,8 @@ static void input_uiohook_destroy(void *data)
 {
 	struct input_uiohook *context = data;
 	input_uiohook_unload(context);
-	bfree(context);
+    if(context)
+        bfree(context);
 }
 
 static obs_properties_t *input_uiohook_properties(void *unused)
@@ -131,34 +131,26 @@ static obs_properties_t *input_uiohook_properties(void *unused)
 static const char * input_uiohook_start(void *data, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(settings);
-	const char *folder = obs_data_get_string(settings, "folder");
-	char* filepath = GenerateEventsFilename(folder);
-	return start_logging(filepath);
+    //UNUSED_PARAMETER(settings);
+    const char *folder = obs_data_get_string(settings, "folder");
+    char* filepath = GenerateEventsFilename(folder);
+    char* status = start_logging(filepath);
+    //if(status != 0){
+    //    obs_data_set_default_bool(settings, "recording", true);
+    //}
+    return status;
 }
 
 static void input_uiohook_stop(void *data, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(settings);
-	stop_logging();
+    UNUSED_PARAMETER(settings);
+    //bool recording = obs_data_get_bool(settings,"recording");
+    //if(recording){
+        stop_logging();
+    //    obs_data_set_default_bool(settings, "recording", false);
+    //}
 }
-
-static struct obs_source_info input_uiohook_info = {
-	.id             = "input_uiohook",
-	.type           = OBS_SOURCE_TYPE_INPUT,
-	.output_flags   = OBS_SOURCE_INTERACTION,
-	.get_name       = input_uiohook_get_name,
-	.create         = input_uiohook_create,
-	.destroy        = input_uiohook_destroy,
-	.update         = input_uiohook_update,
-	.start          = input_uiohook_start,
-	.stop           = input_uiohook_stop,
-	.get_defaults   = input_uiohook_defaults,
-	.show           = input_uiohook_show,
-	.hide           = input_uiohook_hide,
-	.get_properties = input_uiohook_properties
-};
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("input-uiohook", "en-US")
@@ -167,6 +159,22 @@ OBS_MODULE_AUTHOR("Christian Frisson")
 
 bool obs_module_load(void)
 {
+    struct obs_source_info input_uiohook_info = {
+        .id             = "input_uiohook",
+        .type           = OBS_SOURCE_TYPE_INPUT,
+        .output_flags   = OBS_SOURCE_INTERACTION,
+        .get_name       = input_uiohook_get_name,
+        .create         = input_uiohook_create,
+        .destroy        = input_uiohook_destroy,
+        .update         = input_uiohook_update,
+        .start          = input_uiohook_start,
+        .stop           = input_uiohook_stop,
+        .get_defaults   = input_uiohook_defaults,
+        .show           = input_uiohook_show,
+        .hide           = input_uiohook_hide,
+        .get_properties = input_uiohook_properties
+    };
+
 	obs_register_source(&input_uiohook_info);
 	return true;
 }

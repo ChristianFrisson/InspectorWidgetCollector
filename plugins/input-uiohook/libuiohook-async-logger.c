@@ -147,7 +147,7 @@ void dispatch_proc(uiohook_event * const event)
                              "id=%i,when=%" PRIu64 ",clock=%" PRIu64 ",mask=0x%X",
                              event->type, event->time, clock, event->mask);
     size_t newlength = length;
-    wchar_t* keychar;
+    wchar_t* keychar = 0;
     switch (event->type) {
     case EVENT_HOOK_ENABLED:
         // Lock the running mutex so we know if the hook is enabled.
@@ -216,7 +216,6 @@ void dispatch_proc(uiohook_event * const event)
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
                              ",keycode=%u,rawcode=0x%X",
                              event->data.keyboard.keycode, event->data.keyboard.rawcode);
-        //if(event_file)fprintf(event_file, "%s\n",	 buffer);
         break;
 
     case EVENT_KEY_TYPED:
@@ -226,11 +225,6 @@ void dispatch_proc(uiohook_event * const event)
                              ",keychar=%ls,rawcode=%u",
                              keychar,
                              event->data.keyboard.rawcode);
-        /*newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keychar=%lc,rawcode=%u",
-                             (wint_t) event->data.keyboard.keychar,
-                             event->data.keyboard.rawcode);*/
-        //if(event_file)fprintf(event_file, "%s\n",	 buffer);
     }
         break;
 
@@ -243,7 +237,6 @@ void dispatch_proc(uiohook_event * const event)
                              ",x=%i,y=%i,button=%i,clicks=%i",
                              event->data.mouse.x, event->data.mouse.y,
                              event->data.mouse.button, event->data.mouse.clicks);
-        //if(event_file)fprintf(event_file, "%s\n",	 buffer);
         break;
 
     case EVENT_MOUSE_WHEEL:
@@ -251,18 +244,15 @@ void dispatch_proc(uiohook_event * const event)
                              ",type=%i,amount=%i,rotation=%i",
                              event->data.wheel.type, event->data.wheel.amount,
                              event->data.wheel.rotation);
-        //if(event_file)fprintf(event_file, "%s\n",	 buffer);
         break;
 
     default:
         break;
     }
 
-
-    printf("%s\n",	 buffer);
-
-
+    //printf("%s\n", buffer);
     if(event_file && newlength!=length)fprintf(event_file, "%s\n",	 buffer);
+    if(keychar) free(keychar);
 }
 
 #ifdef _WIN32
@@ -631,12 +621,12 @@ const char* start_logging(char* event_file_name)
 
 int stop_logging(void)
 {
-
     int status = true;
     if(start_status == UIOHOOK_SUCCESS) {
         status = hook_stop();
     }
-
+    start_status = UIOHOOK_FAILURE;
+    status = UIOHOOK_FAILURE;
 #ifdef _WIN32
     // Create event handles for the thread hook.
     CloseHandle(hook_thread);
