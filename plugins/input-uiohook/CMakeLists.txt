@@ -3,24 +3,74 @@ project(input-uiohook)
 # libuiohook
 
 if(APPLE)
-	find_library(APPLICATIONSERVICES_LIBRARY ApplicationServices)
-	if(APPLICATIONSERVICES_LIBRARY)
-		message(STATUS "Found ApplicationServices: ${APPLICATIONSERVICES_LIBRARY}")
-	else()
-		message(FATAL_ERROR "ApplicationServices not found")
-	endif()
-	find_library(COCOA_LIBRARY Cocoa)
-	if(COCOA_LIBRARY)
-		message(STATUS "Found Cocoa: ${COCOA_LIBRARY}")
-	else()
-		message(FATAL_ERROR "Foundation not found")
-	endif()
-	find_library(IOKIT_LIBRARY IOKit)
-	if(IOKIT_LIBRARY)
-		message(STATUS "Found IOKit: ${IOKIT_LIBRARY}")
-	else()
-		message(FATAL_ERROR "IOKit not found")
-	endif()
+        #TODO: Force CLANG for OS X because it is required as of OS X 10.10.
+
+        option(USE_COREFOUNDATION "Enable CoreFoundation framework" ON)
+        if(USE_COREFOUNDATION)
+            find_library(APPLICATIONSERVICES_LIBRARY ApplicationServices)
+            if(APPLICATIONSERVICES_LIBRARY)
+                    message(STATUS "Found ApplicationServices: ${APPLICATIONSERVICES_LIBRARY}")
+                    add_definitions(-DUSE_COREFOUNDATION)
+            else()
+                    message(FATAL_ERROR "ApplicationServices not found")
+            endif()
+        endif()
+
+        option(USE_IOKIT "Enable IOKit framework" ON)
+        if(USE_IOKIT)
+            find_library(IOKIT_LIBRARY IOKit)
+            if(IOKIT_LIBRARY)
+                    message(STATUS "Found IOKit: ${IOKIT_LIBRARY}")
+                    add_definitions(-DUSE_IOKIT)
+            else()
+                    message(FATAL_ERROR "IOKit not found")
+            endif()
+        endif()
+
+        option(USE_OBJC "Enable objective-c" ON)
+        if(USE_OBJC)
+            message(STATUS "Enable objective-c")
+            add_definitions(-DUSE_OBJC)
+            link_libraries(objc)
+        else()
+            message(STATUS "Disable objective-c")
+        endif()
+
+        option(USE_WEAK_IMPORT "Enable support for weakly-linked symbols" OFF)
+        if(USE_WEAK_IMPORT)
+            message(STATUS "Enable support for weakly-linked symbols")
+            set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS} -Wl -flat_namespace -undefined dynamic_lookup")
+            set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -Wl -flat_namespace -undefined dynamic_lookup")
+            add_definitions(-DUSE_WEAK_IMPORT)
+        else()
+            message(STATUS "Disable support for weakly-linked symbols")
+        endif()
+
+        option(USE_CARBON_LEGACY "Enable Carbon framework legacy functionality" OFF)
+        if(USE_CARBON_LEGACY)
+            message(STATUS "Enable Carbon framework legacy functionality")
+            # FIXME Return error if this is a 64 bit target.
+            # Carbon legacy functionality is required for OS X version 10.4 and should only be used on 32-bit targets.
+            #add_definitions(-DUSE_CARBON_LEGACY)
+        endif()
+
+        # Always add Carbon due to non-deprecated #define's
+        find_library(CARBON_LIBRARY Carbon)
+        if(CARBON_LIBRARY)
+                message(STATUS "Found Carbon: ${CARBON_LIBRARY}")
+        else()
+                message(FATAL_ERROR "Carbon not found")
+        endif()
+
+        set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS} -Wl -undefined error")
+        set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS} -Wl -undefined error")
+
+        #find_library(COCOA_LIBRARY Cocoa)
+        #if(COCOA_LIBRARY)
+        #        message(STATUS "Found Cocoa: ${COCOA_LIBRARY}")
+        #else()
+        #        message(FATAL_ERROR "Cocoa not found")
+        #endif()
 endif()
 
 include_directories(libuiohook/include)
@@ -53,8 +103,10 @@ add_library(libuiohook
 if(APPLE)
     target_link_libraries(libuiohook 
         ${APPLICATIONSERVICES_LIBRARY} 
-        ${COCOA_LIBRARY} 
-        ${IOKIT_LIBRARY})
+        ${IOKIT_LIBRARY}
+        ${COCOA_LIBRARY}
+        ${CARBON_LIBRARY}
+)
 endif()
 
 # input-uiohook

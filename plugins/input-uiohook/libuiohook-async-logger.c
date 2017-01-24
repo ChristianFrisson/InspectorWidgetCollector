@@ -1,6 +1,6 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
  * Copyright (C) 2006-2015 Alexander Barker. 2015 Christian Frisson. All Rights Received.
- * https://github.com/ChristianFrisson/libuiohook/
+ * https://github.com/InspectorWidget/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
@@ -214,7 +214,7 @@ void dispatch_proc(uiohook_event * const event)
         }*/
     case EVENT_KEY_RELEASED:
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keycode=%u,rawcode=0x%X",
+                             ",keycode=0x%X,rawcode=0x%X",
                              event->data.keyboard.keycode, event->data.keyboard.rawcode);
         break;
 
@@ -222,7 +222,7 @@ void dispatch_proc(uiohook_event * const event)
     {
         keychar = escape_char(event->data.keyboard.keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keychar=%ls,rawcode=%u",
+                             ",keychar=%ls,rawcode=0x%X",
                              keychar,
                              event->data.keyboard.rawcode);
     }

@@ -1,6 +1,6 @@
 /* libUIOHook: Cross-platfrom userland keyboard and mouse hooking.
  * Copyright (C) 2006-2015 Alexander Barker. 2015 Christian Frisson. All Rights Received.
- * https://github.com/ChristianFrisson/libuiohook/
+ * https://github.com/InspectorWidget/libuiohook/
  *
  * libUIOHook is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published
