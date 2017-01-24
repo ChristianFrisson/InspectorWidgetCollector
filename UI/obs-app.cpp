@@ -1066,10 +1066,11 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 	time_t    now = time(0);
 	char      file[256] = {};
 	struct tm *cur_time;
+    noSpace = true; /// force for InspectorWidget
 
 	cur_time = localtime(&now);
-	snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d.%s",
-			cur_time->tm_year+1900,
+    snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d/%d-%02d-%02d%c%02d-%02d-%02d.%s",
+            cur_time->tm_year+1900,
 			cur_time->tm_mon+1,
 			cur_time->tm_mday,
             noSpace ? '-' : ' ',
@@ -1087,6 +1088,7 @@ string GenerateSpecifiedFilename(const char *extension, bool noSpace,
 	time_t now = time(0);
 	struct tm *cur_time;
 	cur_time = localtime(&now);
+    noSpace = true; /// force for InspectorWidget
 
 	const size_t spec_count = 23;
 	const char *spec[][2] = {

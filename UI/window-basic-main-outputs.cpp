@@ -88,6 +88,7 @@ static void OBSRecordStopping(void *data, calldata_t *params)
 static void FindBestFilename(string &strPath, bool noSpace)
 {
 	int num = 2;
+    noSpace = true; /// force for InspectorWidget
 
 	if (!os_file_exists(strPath.c_str()))
 		return;
@@ -597,6 +598,7 @@ bool SimpleOutput::StartRecording()
 			"MuxerCustom");
 	bool noSpace = config_get_bool(main->Config(), "SimpleOutput",
 			"FileNameWithoutSpace");
+    noSpace = true; /// force for InspectorWidget
 	const char *filenameFormat = config_get_string(main->Config(), "Output",
 				"FilenameFormatting");
 	bool overwriteIfExists = config_get_bool(main->Config(), "Output",
@@ -1136,6 +1138,7 @@ bool AdvancedOutput::StartRecording()
 	const char *recFormat;
 	const char *filenameFormat;
 	bool noSpace = false;
+    noSpace = true; /// force for InspectorWidget
 	bool overwriteIfExists = false;
 
 	if (!useStreamEncoder) {
@@ -1164,6 +1167,7 @@ bool AdvancedOutput::StartRecording()
 				ffmpegRecording ?
 				"FFFileNameWithoutSpace" :
 				"RecFileNameWithoutSpace");
+        noSpace = true; /// force for InspectorWidget
 
 		os_dir_t *dir = path ? os_opendir(path) : nullptr;
 
