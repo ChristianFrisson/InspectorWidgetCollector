@@ -91,6 +91,7 @@ struct rtmp_stream {
 	int64_t          pframe_drop_threshold_usec;
 	int64_t          pframe_min_drop_dts_usec;
 	int              min_priority;
+	float            congestion;
 
 	int64_t          last_dts_usec;
 
@@ -883,8 +884,11 @@ static void check_to_drop_frames(struct rtmp_stream *stream, bool pframes)
 		stream->pframe_drop_threshold_usec :
 		stream->drop_threshold_usec;
 
-	if (num_packets < 5)
+	if (num_packets < 5) {
+		if (!pframes)
+			stream->congestion = 0.0f;
 		return;
+	}
 
 	circlebuf_peek_front(&stream->packets, &first, sizeof(first));
 
@@ -895,6 +899,11 @@ static void check_to_drop_frames(struct rtmp_stream *stream, bool pframes)
 	/* if the amount of time stored in the buffered packets waiting to be
 	 * sent is higher than threshold, drop frames */
 	buffer_duration_usec = stream->last_dts_usec - first.dts_usec;
+
+	if (!pframes) {
+		stream->congestion = (float)buffer_duration_usec /
+			(float)drop_threshold;
+	}
 
 	if (buffer_duration_usec > drop_threshold) {
 		debug("buffer_duration_usec: %" PRId64, buffer_duration_usec);
@@ -952,8 +961,8 @@ static void rtmp_stream_data(void *data, struct encoder_packet *packet)
 
 static void rtmp_stream_defaults(obs_data_t *defaults)
 {
-	obs_data_set_default_int(defaults, OPT_DROP_THRESHOLD, 500);
-	obs_data_set_default_int(defaults, OPT_PFRAME_DROP_THRESHOLD, 800);
+	obs_data_set_default_int(defaults, OPT_DROP_THRESHOLD, 700);
+	obs_data_set_default_int(defaults, OPT_PFRAME_DROP_THRESHOLD, 900);
 	obs_data_set_default_int(defaults, OPT_MAX_SHUTDOWN_TIME_SEC, 30);
 	obs_data_set_default_string(defaults, OPT_BIND_IP, "default");
 }
@@ -998,6 +1007,12 @@ static int rtmp_stream_dropped_frames(void *data)
 	return stream->dropped_frames;
 }
 
+static float rtmp_stream_congestion(void *data)
+{
+	struct rtmp_stream *stream = data;
+	return stream->min_priority > 0 ? 1.0f : stream->congestion;
+}
+
 struct obs_output_info rtmp_output_info = {
 	.id                 = "rtmp_output",
 	.flags              = OBS_OUTPUT_AV |
@@ -1013,5 +1028,6 @@ struct obs_output_info rtmp_output_info = {
 	.get_defaults       = rtmp_stream_defaults,
 	.get_properties     = rtmp_stream_properties,
 	.get_total_bytes    = rtmp_stream_total_bytes_sent,
+	.get_congestion     = rtmp_stream_congestion,
 	.get_dropped_frames = rtmp_stream_dropped_frames
 };
