@@ -23,24 +23,16 @@ const char* start_logging_accessibility(char* event_file_name){
     if (!event_file_name || (event_file_name && !event_file_name[0])) {
         return "event file name empty";
     }
-    /*event_file = fopen (event_file_name, "w+");
-    if (event_file == NULL){
-        return "event file not found";
-    }*/
 
 #ifdef __APPLE__
     int status = start_ax(event_file_name);
     return (status == 0 ? "" : "Could not start accessibility recording");
 #endif
 
-    //setbuf(event_file, NULL);
     return "Could not start accessibility recording";
 }
 
 int stop_logging_accessibility(void){
-    // Close the file
-    //fflush(event_file);
-    //fclose(event_file);
 #ifdef __APPLE__
     int status = stop_ax();
     return (status == 0 ? "" : "Could not stop accessibility recording");
