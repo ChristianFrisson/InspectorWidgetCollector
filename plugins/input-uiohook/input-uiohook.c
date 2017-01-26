@@ -26,8 +26,9 @@ struct input_uiohook {
 char* GenerateEventsFilename(const char* path)
 {
 	time_t    now = time(0);
-	char      file[256] = {};
 	struct tm *cur_time;
+    int bufSize = 1024;
+    char *file = (char*)malloc(bufSize);
 
 #ifdef _WIN32
 	char slash = '\\';
@@ -36,8 +37,8 @@ char* GenerateEventsFilename(const char* path)
 #endif
 
 	cur_time = localtime(&now);
-	snprintf(file,
-	         sizeof(file),
+    snprintf(file,
+             bufSize,
              "%s%c%d-%02d-%02d-%02d-%02d-%02d%c%d-%02d-%02d-%02d-%02d-%02d.txt",
 	         path,
 	         slash,
@@ -54,6 +55,7 @@ char* GenerateEventsFilename(const char* path)
              cur_time->tm_hour,
              cur_time->tm_min,
              cur_time->tm_sec);
+    printf("file '%s'\n",file);
 	return file;
 }
 
@@ -141,7 +143,9 @@ static const char * input_uiohook_start(void *data, obs_data_t *settings)
     //UNUSED_PARAMETER(settings);
     const char *folder = obs_data_get_string(settings, "folder");
     char* filepath = GenerateEventsFilename(folder);
+    //printf("filepath %s\n",filepath);
     char* status = start_logging(filepath);
+    free(filepath);
     //if(status != 0){
     //    obs_data_set_default_bool(settings, "recording", true);
     //}

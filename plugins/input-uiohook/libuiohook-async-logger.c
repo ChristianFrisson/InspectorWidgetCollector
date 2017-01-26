@@ -512,9 +512,13 @@ const char* start_logging(char* event_file_name)
     if (!event_file_name || (event_file_name && !event_file_name[0])) {
         return "event file name empty";
     }
-
+    logger_proc(LOG_LEVEL_WARN, "Logging events in file %s.\n", event_file_name);
     event_file = fopen (event_file_name, "w+");
-    setbuf(event_file, NULL);
+    if (event_file == NULL){
+        return "event file not found";
+    }
+
+    //setbuf(event_file, NULL);
 
     // Lock the thread control mutex.  This will be unlocked when the
     // thread has finished starting, or when it has fully stopped.
