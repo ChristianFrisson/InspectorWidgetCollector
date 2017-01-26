@@ -6,7 +6,7 @@ InspectorWidget is an opensource suite to track and analyze users behaviors in t
 
 The key contributions of InspectorWidget are:
 1) it works on closed applications that do not provide source code nor scripting capabilities; 
-2) it covers the whole pipeline of software analysis from logging input events to visual statistics through browsing and programmable annotation; 
+2) it covers the whole pipeline of software analysis from logging input events and accessibility data to visual statistics through browsing and programmable annotation; 
 3) it allows post-recording logging; and 4) it does not require programming skills. To achieve this, InspectorWidget combines low-level event logging (e.g. mouse and keyboard events) and high-level screen features (e.g. interface widgets) captured though computer vision techniques. 
 
 InspectorWidget is targeted at end users, usability experts, user experience and HCI researchers.
@@ -14,8 +14,8 @@ InspectorWidget is targeted at end users, usability experts, user experience and
 ## Distribution
 
 [InspectorWidget](https://github.com/InspectorWidget/InspectorWidget) is composed of three tools:
-- [Collector](https://github.com/InspectorWidget/InspectorWidgetCollector): Record (screen), Log (input events) 
-- [Iterator](https://github.com/InspectorWidget/InspectorWidgetIterator): Browse (screen + input events), Program (annotations), Analyze (worflows)
+- [Collector](https://github.com/InspectorWidget/InspectorWidgetCollector): Record (screen), Log (input events + accessibility data) 
+- [Iterator](https://github.com/InspectorWidget/InspectorWidgetIterator): Browse (screen + input events + accessibility data), Program (annotations), Analyze (workflows)
 - [Processor](https://github.com/InspectorWidget/InspectorWidgetProcessor): Automate (annotations)
 
 ### InspectorWidget Collector
@@ -58,10 +58,7 @@ Create a build folder, open a terminal inside:
 ```cmake <source_path> -DCMAKE_TOOLCHAIN_FILE=<mxe_path>/usr/i686-w64-mingw32.static/share/cmake/mxe-conf.cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_INSTALL_PREFIX=release```
 replace `<source_path>` with the path to the source directory from above
 replace `<mxe_path>` with the root path where mxe is installed
-* compile:
-```
-make
-```
+* compile:```make```
 * make a portable distribution: 
 ```touch release/portable_mode.txt```
 * launch (from a virtual or physical machine running Windows): `bin/32bits/obs32.exe`
@@ -77,4 +74,4 @@ InspectorWidget Collector is released under the terms of the [GPLv2](http://www.
 ## Authors
  * [jp9000](https://github.com/jp9000/) and many other [contributors](https://github.com/jp9000/obs-studio/graphs/contributors): creators and developers of the original [obs-studio](https://github.com/jp9000/obs-studio)
  * [kwhat](https://github.com/kwhat/): creator and developer of the original [libuiohook](https://github.com/kwhat/libuiohook)
- * [Christian Frisson](http://christian.frisson.re) (University of Mons): creator of the [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugin
+ * [Christian Frisson](http://christian.frisson.re) (initially University of Mons, now Inria Lille): creator of the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility)  and [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugins
