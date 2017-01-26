@@ -19,12 +19,16 @@
 #include <util/util.hpp>
 #include <QMessageBox>
 #include <QVariant>
+#include <QFileDialog>
+#include <QStandardPaths>
 #include "item-widget-helpers.hpp"
 #include "window-basic-main.hpp"
 #include "window-namedialog.hpp"
 #include "qt-wrappers.hpp"
 
-template <typename Func> static void EnumSceneCollections(Func &&cb)
+using namespace std;
+
+void EnumSceneCollections(std::function<bool (const char *, const char *)> &&cb)
 {
 	char path[512];
 	os_glob_t *glob;
@@ -176,6 +180,11 @@ void OBSBasic::AddSceneCollection(bool create_new)
 	blog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
+	}
 }
 
 void OBSBasic::RefreshSceneCollections()
@@ -184,7 +193,7 @@ void OBSBasic::RefreshSceneCollections()
 	int count = 0;
 
 	for (int i = 0; i < menuActions.count(); i++) {
-		QVariant v = menuActions[i]->property("fileName");
+		QVariant v = menuActions[i]->property("file_name");
 		if (v.typeName() != nullptr)
 			delete menuActions[i];
 	}
@@ -198,7 +207,7 @@ void OBSBasic::RefreshSceneCollections()
 		file.erase(file.size() - 5, 5);
 
 		QAction *action = new QAction(QT_UTF8(name), this);
-		action->setProperty("fileName", QT_UTF8(path));
+		action->setProperty("file_name", QT_UTF8(path));
 		connect(action, &QAction::triggered,
 				this, &OBSBasic::ChangeSceneCollection);
 		action->setCheckable(true);
@@ -265,6 +274,11 @@ void OBSBasic::on_actionRenameSceneCollection_triggered()
 
 	UpdateTitleBar();
 	RefreshSceneCollections();
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
+	}
 }
 
 void OBSBasic::on_actionRemoveSceneCollection_triggered()
@@ -328,6 +342,72 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered()
 	blog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
+	}
+}
+
+void OBSBasic::on_actionImportSceneCollection_triggered()
+{
+	char path[512];
+
+	QString home = QDir::homePath();
+
+	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get scene collection config path");
+		return;
+	}
+
+	QString file = QFileDialog::getOpenFileName(
+			this,
+			QTStr("Basic.MainMenu.SceneCollection.Import"),
+			home,
+			"JSON Files (*.json)");
+
+	QFileInfo finfo(file);
+	QString filename = finfo.fileName();
+	QFileInfo destinfo(path + filename);
+
+	if (!file.isEmpty() && !file.isNull()) {
+		 if (!destinfo.exists()) {
+			QFile::copy(file, path + filename);
+			RefreshSceneCollections();
+		} else {
+			QMessageBox::information(this,
+				QTStr("Basic.MainMenu.SceneCollection.Import"),
+				QTStr("Basic.MainMenu.SceneCollection.Exists"));
+		}
+	}
+}
+
+void OBSBasic::on_actionExportSceneCollection_triggered()
+{
+	char path[512];
+
+	QString home = QDir::homePath();
+
+	QString currentFile = QT_UTF8(config_get_string(App()->GlobalConfig(),
+				"Basic", "SceneCollectionFile"));
+
+	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get scene collection config path");
+		return;
+	}
+
+	QString exportFile = QFileDialog::getSaveFileName(
+			this,
+			QTStr("Basic.MainMenu.SceneCollection.Export"),
+			home + "/" + currentFile,
+			"JSON Files (*.json)");
+
+	string file = QT_TO_UTF8(exportFile);
+
+	if (!exportFile.isEmpty() && !exportFile.isNull())
+		QFile::copy(path + currentFile + ".json", exportFile);
 }
 
 void OBSBasic::ChangeSceneCollection()
@@ -338,7 +418,7 @@ void OBSBasic::ChangeSceneCollection()
 	if (!action)
 		return;
 
-	fileName = QT_TO_UTF8(action->property("fileName").value<QString>());
+	fileName = QT_TO_UTF8(action->property("file_name").value<QString>());
 	if (fileName.empty())
 		return;
 
@@ -364,4 +444,7 @@ void OBSBasic::ChangeSceneCollection()
 	blog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
+
+	if (api)
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
 }

@@ -29,7 +29,9 @@
 #include <obs-config.h>
 #include <obs.hpp>
 
+#include <QGuiApplication>
 #include <QProxyStyle>
+#include <QScreen>
 
 #include "qt-wrappers.hpp"
 #include "obs-app.hpp"
@@ -57,11 +59,18 @@ static string currentLogFile;
 static string lastLogFile;
 
 static bool portable_mode = false;
+static bool log_verbose = false;
+static bool unfiltered_log = false;
 bool opt_start_streaming = false;
 bool opt_start_recording = false;
 string opt_starting_collection;
 string opt_starting_profile;
 string opt_starting_scene;
+
+// AMD PowerXpress High Performance Flags
+#ifdef _MSC_VER
+extern "C" __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+#endif
 
 QObject *CreateShortcutFilter()
 {
@@ -268,6 +277,10 @@ static inline bool too_many_repeated_entries(fstream &logFile, const char *msg,
 
 	lock_guard<mutex> guard(log_mutex);
 
+	if (unfiltered_log) {
+		return false;
+	}
+
 	if (last_msg_ptr == msg) {
 		int diff = std::abs(new_sum - last_char_sum);
 		if (diff < MAX_CHAR_VARIATION) {
@@ -312,7 +325,7 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
 	if (too_many_repeated_entries(logFile, msg, str))
 		return;
 
-	if (log_level <= LOG_INFO)
+	if (log_level <= LOG_INFO || log_verbose)
 		LogStringChunk(logFile, str);
 
 #if defined(_WIN32) && defined(OBS_DEBUGBREAK_ON_ERROR)
@@ -448,7 +461,7 @@ static string GetProfileDirFromName(const char *name)
 	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
 		return outputPath;
 
-	strcat(path, "/*.*");
+	strcat(path, "/*");
 
 	if (os_glob(path, 0, &glob) != 0)
 		return outputPath;
@@ -855,6 +868,9 @@ bool OBSApp::OBSInit()
 		if (!StartupOBS(locale.c_str(), GetProfilerNameStore()))
 			return false;
 
+		blog(LOG_INFO, "Portable mode: %s",
+				portable_mode ? "true" : "false");
+
 		mainWindow = new OBSBasic();
 
 		mainWindow->setAttribute(Qt::WA_DeleteOnClose, true);
@@ -906,6 +922,11 @@ string OBSApp::GetVersionString() const
 	return ver.str();
 }
 
+bool OBSApp::IsPortableMode()
+{
+	return portable_mode;
+}
+
 #ifdef __APPLE__
 #define INPUT_AUDIO_SOURCE  "coreaudio_input_capture"
 #define OUTPUT_AUDIO_SOURCE "coreaudio_output_capture"
@@ -937,12 +958,22 @@ const char *OBSApp::GetCurrentLog() const
 	return currentLogFile.c_str();
 }
 
+bool OBSApp::TranslateString(const char *lookupVal, const char **out) const
+{
+	for (obs_frontend_translate_ui_cb cb : translatorHooks) {
+		if (cb(lookupVal, out))
+			return true;
+	}
+
+	return text_lookup_getstr(App()->GetTextLookup(), lookupVal, out);
+}
+
 QString OBSTranslator::translate(const char *context, const char *sourceText,
 		const char *disambiguation, int n) const
 {
 	const char *out = nullptr;
-	if (!text_lookup_getstr(App()->GetTextLookup(), sourceText, &out))
-		return QString();
+	if (!App()->TranslateString(sourceText, &out))
+		return QString(sourceText);
 
 	UNUSED_PARAMETER(context);
 	UNUSED_PARAMETER(disambiguation);
@@ -1069,7 +1100,7 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
     noSpace = true; /// force for InspectorWidget
 
 	cur_time = localtime(&now);
-    snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d/%d-%02d-%02d%c%02d-%02d-%02d.%s",
+    /*snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d/%d-%02d-%02d%c%02d-%02d-%02d.%s",
             cur_time->tm_year+1900,
 			cur_time->tm_mon+1,
 			cur_time->tm_mday,
@@ -1077,7 +1108,16 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 			cur_time->tm_hour,
 			cur_time->tm_min,
 			cur_time->tm_sec,
-			extension);
+            extension);*/
+    snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d.%s",
+                cur_time->tm_year+1900,
+                cur_time->tm_mon+1,
+                cur_time->tm_mday,
+                noSpace ? '_' : ' ',
+                cur_time->tm_hour,
+                cur_time->tm_min,
+                cur_time->tm_sec,
+    extension);
 
 	return string(file);
 }
@@ -1085,80 +1125,10 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 string GenerateSpecifiedFilename(const char *extension, bool noSpace,
 		const char *format)
 {
-	time_t now = time(0);
-	struct tm *cur_time;
-	cur_time = localtime(&now);
     noSpace = true; /// force for InspectorWidget
-
-	const size_t spec_count = 23;
-	const char *spec[][2] = {
-		{"%CCYY", "%Y"},
-		{"%YY",   "%y"},
-		{"%MM",   "%m"},
-		{"%DD",   "%d"},
-		{"%hh",   "%H"},
-		{"%mm",   "%M"},
-		{"%ss",   "%S"},
-		{"%%",    "%%"},
-
-		{"%a",    ""},
-		{"%A",    ""},
-		{"%b",    ""},
-		{"%B",    ""},
-		{"%d",    ""},
-		{"%H",    ""},
-		{"%I",    ""},
-		{"%m",    ""},
-		{"%M",    ""},
-		{"%p",    ""},
-		{"%S",    ""},
-		{"%y",    ""},
-		{"%Y",    ""},
-		{"%z",    ""},
-		{"%Z",    ""},
-	};
-
-	char convert[128] = {};
-	string sf = format;
-	string c;
-	size_t pos = 0, len;
-
-	while (pos < sf.length()) {
-		len = 0;
-		for (size_t i = 0; i < spec_count && len == 0; i++) {
-
-			if (sf.find(spec[i][0], pos) == pos) {
-				if (strlen(spec[i][1]))
-					strftime(convert, sizeof(convert),
-							spec[i][1], cur_time);
-				else
-					strftime(convert, sizeof(convert),
-							spec[i][0], cur_time);
-
-				len = strlen(spec[i][0]);
-
-				c = convert;
-				if (c.length() && c.find_first_not_of(' ') !=
-						std::string::npos)
-					sf.replace(pos, len, convert);
-			}
-		}
-
-		if (len)
-			pos += strlen(convert);
-		else if (!len && sf.at(pos) == '%')
-			sf.erase(pos,1);
-		else
-			pos++;
-	}
-
-	if (noSpace)
-        replace(sf.begin(), sf.end(), ' ', '-');
-
-	sf += '.';
-	sf += extension;
-
-	return (sf.length() < 256) ? sf : sf.substr(0, 255);
+	BPtr<char> filename = os_generate_formatted_filename(extension,
+			!noSpace, format);
+	return string(filename);
 }
 
 vector<pair<string, string>> GetLocaleNames()
@@ -1510,20 +1480,12 @@ bool GetClosestUnusedFileName(std::string &path, const char *extension)
 	return true;
 }
 
-bool WindowPositionValid(int x, int y)
+bool WindowPositionValid(QRect rect)
 {
-	vector<MonitorInfo> monitors;
-	GetMonitors(monitors);
-
-	for (auto &monitor : monitors) {
-		int br_x = monitor.x + monitor.cx;
-		int br_y = monitor.y + monitor.cy;
-
-		if (x >= monitor.x && x < br_x &&
-		    y >= monitor.y && y < br_y)
+	for (QScreen* screen: QGuiApplication::screens()) {
+		if (screen->availableGeometry().intersects(rect))
 			return true;
 	}
-
 	return false;
 }
 
@@ -1785,6 +1747,12 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; i++) {
 		if (arg_is(argv[i], "--portable", "-p")) {
 			portable_mode = true;
+
+		} else if (arg_is(argv[i], "--verbose", nullptr)) {
+			log_verbose = true;
+
+		} else if (arg_is(argv[i], "--unfiltered_log", nullptr)) {
+			unfiltered_log = true;
 
 		} else if (arg_is(argv[i], "--startstreaming", nullptr)) {
 			opt_start_streaming = true;

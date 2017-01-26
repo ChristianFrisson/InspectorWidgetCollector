@@ -20,11 +20,12 @@
 #include <util/util.hpp>
 #include <QMessageBox>
 #include <QVariant>
+#include <QFileDialog>
 #include "window-basic-main.hpp"
 #include "window-namedialog.hpp"
 #include "qt-wrappers.hpp"
 
-template <typename Func> static void EnumProfiles(Func &&cb)
+void EnumProfiles(std::function<bool (const char *, const char *)> &&cb)
 {
 	char path[512];
 	os_glob_t *glob;
@@ -239,6 +240,11 @@ bool OBSBasic::AddProfile(bool create_new, const char *title, const char *text,
 
 	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 	UpdateTitleBar();
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+	}
 	return true;
 }
 
@@ -363,6 +369,11 @@ void OBSBasic::on_actionRenameProfile_triggered()
 		DeleteProfile(curName.c_str(), curDir.c_str());
 		RefreshProfiles();
 	}
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+	}
 }
 
 void OBSBasic::on_actionRemoveProfile_triggered()
@@ -431,6 +442,98 @@ void OBSBasic::on_actionRemoveProfile_triggered()
 	blog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
+
+	if (api) {
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+	}
+}
+
+void OBSBasic::on_actionImportProfile_triggered()
+{
+	char path[512];
+
+	QString home = QDir::homePath();
+
+	int ret = GetConfigPath(path, 512, "obs-studio/basic/profiles/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get profile config path");
+		return;
+	}
+
+	QString dir = QFileDialog::getExistingDirectory(
+			this,
+			QTStr("Basic.MainMenu.Profile.Import"),
+			home,
+			QFileDialog::ShowDirsOnly |
+			QFileDialog::DontResolveSymlinks);
+
+	if (!dir.isEmpty() && !dir.isNull()) {
+		QString inputPath = QString::fromUtf8(path);
+		QFileInfo finfo(dir);
+		QString directory = finfo.fileName();
+		QString profileDir = inputPath + directory;
+		QDir folder(profileDir);
+
+		if (!folder.exists()) {
+			folder.mkpath(profileDir);
+			QFile::copy(dir + "/basic.ini",
+					profileDir + "/basic.ini");
+			QFile::copy(dir + "/service.json",
+					profileDir + "/service.json");
+			QFile::copy(dir + "/streamEncoder.json",
+					profileDir + "/streamEncoder.json");
+			QFile::copy(dir + "/recordEncoder.json",
+					profileDir + "/recordEncoder.json");
+			RefreshProfiles();
+		} else {
+			QMessageBox::information(this,
+					QTStr("Basic.MainMenu.Profile.Import"),
+					QTStr("Basic.MainMenu.Profile.Exists"));
+		}
+	}
+}
+
+void OBSBasic::on_actionExportProfile_triggered()
+{
+	char path[512];
+
+	QString home = QDir::homePath();
+
+	QString currentProfile =
+		QString::fromUtf8(config_get_string(App()->GlobalConfig(),
+		"Basic", "ProfileDir"));
+
+	int ret = GetConfigPath(path, 512, "obs-studio/basic/profiles/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get profile config path");
+		return;
+	}
+
+	QString dir = QFileDialog::getExistingDirectory(
+			this,
+			QTStr("Basic.MainMenu.Profile.Export"),
+			home,
+			QFileDialog::ShowDirsOnly |
+			QFileDialog::DontResolveSymlinks);
+
+	if (!dir.isEmpty() && !dir.isNull()) {
+		QString outputDir = dir + "/" + currentProfile;
+		QString inputPath = QString::fromUtf8(path);
+		QDir folder(outputDir);
+
+		if (!folder.exists()) {
+			folder.mkpath(outputDir);
+			QFile::copy(inputPath + currentProfile + "/basic.ini",
+					outputDir + "/basic.ini");
+			QFile::copy(inputPath + currentProfile + "/service.json",
+					outputDir + "/service.json");
+			QFile::copy(inputPath + currentProfile + "/streamEncoder.json",
+					outputDir + "/streamEncoder.json");
+			QFile::copy(inputPath + currentProfile + "/recordEncoder.json",
+					outputDir + "/recordEncoder.json");
+		}
+	}
 }
 
 void OBSBasic::ChangeProfile()
@@ -481,4 +584,7 @@ void OBSBasic::ChangeProfile()
 	blog(LOG_INFO, "Switched to profile '%s' (%s)",
 			newName, newDir);
 	blog(LOG_INFO, "------------------------------------------------");
+
+	if (api)
+		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
 }

@@ -25,9 +25,11 @@
 #include <util/profiler.h>
 #include <util/util.hpp>
 #include <util/platform.h>
+#include <obs-frontend-api.h>
 #include <string>
 #include <memory>
 #include <vector>
+#include <deque>
 
 #include "window-main.hpp"
 
@@ -71,6 +73,8 @@ private:
 	os_inhibit_t                   *sleepInhibitor = nullptr;
 	int                            sleepInhibitRefs = 0;
 
+	std::deque<obs_frontend_translate_ui_cb> translatorHooks;
+
 	bool InitGlobalConfig();
 	bool InitGlobalConfigDefaults();
 	bool InitLocale();
@@ -102,6 +106,8 @@ public:
 		return textLookup.GetString(lookupVal);
 	}
 
+	bool TranslateString(const char *lookupVal, const char **out) const;
+
 	profiler_name_store_t *GetProfilerNameStore() const
 	{
 		return profilerNameStore;
@@ -111,6 +117,7 @@ public:
 	const char *GetCurrentLog() const;
 
 	std::string GetVersionString() const;
+	bool IsPortableMode();
 
 	const char *InputAudioSource() const;
 	const char *OutputAudioSource() const;
@@ -131,6 +138,16 @@ public:
 		if (--sleepInhibitRefs == 0)
 			os_inhibit_sleep_set_active(sleepInhibitor, false);
 	}
+
+	inline void PushUITranslation(obs_frontend_translate_ui_cb cb)
+	{
+		translatorHooks.emplace_front(cb);
+	}
+
+	inline void PopUITranslation()
+	{
+		translatorHooks.pop_front();
+	}
 };
 
 int GetConfigPath(char *path, size_t size, const char *name);
@@ -150,7 +167,7 @@ inline const char *Str(const char *lookup) {return App()->GetString(lookup);}
 bool GetFileSafeName(const char *name, std::string &file);
 bool GetClosestUnusedFileName(std::string &path, const char *extension);
 
-bool WindowPositionValid(int x, int y);
+bool WindowPositionValid(QRect rect);
 
 static inline int GetProfilePath(char *path, size_t size, const char *file)
 {

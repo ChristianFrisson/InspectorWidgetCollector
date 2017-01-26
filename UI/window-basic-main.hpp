@@ -30,6 +30,8 @@
 #include "window-basic-adv-audio.hpp"
 #include "window-basic-filters.hpp"
 
+#include <obs-frontend-internal.hpp>
+
 #include <util/platform.h>
 #include <util/threading.h>
 #include <util/util.hpp>
@@ -52,6 +54,7 @@ class QNetworkReply;
 #define SIMPLE_ENCODER_X264_LOWCPU             "x264_lowcpu"
 #define SIMPLE_ENCODER_QSV                     "qsv"
 #define SIMPLE_ENCODER_NVENC                   "nvenc"
+#define SIMPLE_ENCODER_AMD                     "amd"
 
 #define PREVIEW_EDGE_SIZE 10
 
@@ -83,6 +86,8 @@ class OBSBasic : public OBSMainWindow {
 	friend class OBSBasicPreview;
 	friend class OBSBasicStatusBar;
 	friend class OBSBasicSourceSelect;
+	friend class OBSBasicSettings;
+	friend struct OBSStudioAPI;
 
 	enum class MoveDir {
 		Up,
@@ -91,7 +96,16 @@ class OBSBasic : public OBSMainWindow {
 		Right
 	};
 
+	enum DropType {
+		DropType_RawText,
+		DropType_Text,
+		DropType_Image,
+		DropType_Media
+	};
+
 private:
+	obs_frontend_callbacks *api = nullptr;
+
 	std::vector<VolControl*> volumes;
 
 	std::vector<OBSSignal> signalHandlers;
@@ -115,6 +129,9 @@ private:
 
 	OBSService service;
 	std::unique_ptr<BasicOutputHandler> outputHandler;
+	bool streamingStopping = false;
+	bool recordingStopping = false;
+	bool replayBufferStopping = false;
 
 	gs_vertbuffer_t *box = nullptr;
 	gs_vertbuffer_t *boxLeft = nullptr;
@@ -136,13 +153,16 @@ private:
 
 	QPointer<QMenu> startStreamMenu;
 
-	QSystemTrayIcon *trayIcon;
-	QMenu         *trayMenu;
-	QAction       *sysTrayStream;
-	QAction       *sysTrayRecord;
-	QAction       *showHide;
-	QAction       *showPreview;
-	QAction       *exit;
+	QPointer<QPushButton> replayBufferButton;
+
+	QPointer<QSystemTrayIcon> trayIcon;
+	QPointer<QAction>         sysTrayStream;
+	QPointer<QAction>         sysTrayRecord;
+	QPointer<QAction>         sysTrayReplayBuffer;
+	QPointer<QAction>         showHide;
+	QPointer<QAction>         exit;
+	QPointer<QMenu>           trayMenu;
+	bool          disableHiding = false;
 
 	void          DrawBackdrop(float cx, float cy);
 
@@ -184,6 +204,8 @@ private:
 	void GetFPSFraction(uint32_t &num, uint32_t &den) const;
 	void GetFPSNanoseconds(uint32_t &num, uint32_t &den) const;
 	void GetConfigFPS(uint32_t &num, uint32_t &den) const;
+
+	void UpdatePreviewScalingMenu();
 
 	void UpdateSources(OBSScene scene);
 	void InsertSceneItem(obs_sceneitem_t *item);
@@ -227,15 +249,13 @@ private:
 
 	QListWidgetItem *GetTopSelectedSourceItem();
 
-	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys;
+	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys,
+	                   replayBufHotkeys;
 	obs_hotkey_id forceStreamingStopHotkey;
 
 	void InitDefaultTransitions();
 	void InitTransition(obs_source_t *transition);
-	void TransitionToScene(obs_scene_t *scene, bool force = false);
-	void TransitionToScene(obs_source_t *scene, bool force = false);
 	obs_source_t *FindTransition(const char *name);
-	void SetTransition(obs_source_t *transition);
 	OBSSource GetCurrentTransition();
 	obs_data_array_t *SaveTransitions();
 	void LoadTransitions(obs_data_array_t *transitions);
@@ -265,7 +285,6 @@ private:
 	void SetPreviewProgramMode(bool enabled);
 	void ResizeProgram(uint32_t cx, uint32_t cy);
 	void SetCurrentScene(obs_scene_t *scene, bool force = false);
-	void SetCurrentScene(obs_source_t *scene, bool force = false);
 	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
 
 	std::vector<QuickTransition> quickTransitions;
@@ -294,6 +313,14 @@ private:
 	inline void OnActivate();
 	inline void OnDeactivate();
 
+	void AddDropSource(const char *file, DropType image);
+	void dragEnterEvent(QDragEnterEvent *event) override;
+	void dragLeaveEvent(QDragLeaveEvent *event) override;
+	void dragMoveEvent(QDragMoveEvent *event) override;
+	void dropEvent(QDropEvent *event) override;
+
+	void ReplayBufferClicked();
+
 public slots:
 	void StartStreaming();
 	void StopStreaming();
@@ -313,8 +340,20 @@ public slots:
 	void RecordStopping();
 	void RecordingStop(int code);
 
+	void StartReplayBuffer();
+	void StopReplayBuffer();
+
+	void ReplayBufferStart();
+	void ReplayBufferStopping();
+	void ReplayBufferStop(int code);
+
 	void SaveProjectDeferred();
 	void SaveProject();
+
+	void SetTransition(OBSSource transition);
+	void TransitionToScene(OBSScene scene, bool force = false);
+	void TransitionToScene(OBSSource scene, bool force = false);
+	void SetCurrentScene(OBSSource scene, bool force = false);
 
 private slots:
 	void AddSceneItem(OBSSceneItem item);
@@ -354,7 +393,12 @@ private slots:
 
 	inline void ToggleShowHide()
 	{
-		SetShowing(!isVisible());
+		bool showing = isVisible();
+		if (disableHiding && showing)
+			return;
+		if (showing)
+			CloseDialogs();
+		SetShowing(!showing);
 	}
 
 private:
@@ -454,7 +498,8 @@ private slots:
 	void on_actionCheckForUpdates_triggered();
 
 	void on_actionEditTransform_triggered();
-	void on_actionResetTransform_triggered();
+	void on_actionCopyTransform_triggered();
+	void on_actionPasteTransform_triggered();
 	void on_actionRotate90CW_triggered();
 	void on_actionRotate90CCW_triggered();
 	void on_actionRotate180_triggered();
@@ -488,6 +533,11 @@ private slots:
 
 	void on_actionLockPreview_triggered();
 
+	void on_scalingMenu_aboutToShow();
+	void on_actionScaleWindow_triggered();
+	void on_actionScaleCanvas_triggered();
+	void on_actionScaleOutput_triggered();
+
 	void on_streamButton_clicked();
 	void on_recordButton_clicked();
 	void on_settingsButton_clicked();
@@ -502,11 +552,15 @@ private slots:
 	void on_actionDupSceneCollection_triggered();
 	void on_actionRenameSceneCollection_triggered();
 	void on_actionRemoveSceneCollection_triggered();
+	void on_actionImportSceneCollection_triggered();
+	void on_actionExportSceneCollection_triggered();
 
 	void on_actionNewProfile_triggered();
 	void on_actionDupProfile_triggered();
 	void on_actionRenameProfile_triggered();
 	void on_actionRemoveProfile_triggered();
+	void on_actionImportProfile_triggered();
+	void on_actionExportProfile_triggered();
 
 	void on_actionShowSettingsFolder_triggered();
 	void on_actionShowProfileFolder_triggered();
@@ -555,6 +609,9 @@ private slots:
 	void OpenPreviewProjector();
 	void OpenSourceProjector();
 	void OpenSceneProjector();
+
+public slots:
+	void on_actionResetTransform_triggered();
 
 public:
 	explicit OBSBasic(QWidget *parent = 0);

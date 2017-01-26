@@ -1,6 +1,3 @@
-project(InspectorWidgetCollector)
-set(obs_APP "InspectorWidgetCollector")
-
 option(ENABLE_UI "Enables the OBS user interfaces" ON)
 if(DISABLE_UI)
 	message(STATUS "UI disabled")
@@ -10,6 +7,12 @@ elseif(ENABLE_UI)
 else()
 	set(FIND_MODE QUIET)
 endif()
+
+add_subdirectory(obs-frontend-api)
+
+# ----------------------------------------------------------------------------
+
+project(obs)
 
 if(DEFINED QTDIR${_lib_suffix})
 	list(APPEND CMAKE_PREFIX_PATH "${QTDIR${_lib_suffix}}")
@@ -41,6 +44,7 @@ if(NOT Qt5Widgets_FOUND)
 	endif()
 endif()
 
+include_directories(SYSTEM "obs-frontend-api")
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/libobs")
 
 find_package(Libcurl REQUIRED)
@@ -79,25 +83,14 @@ elseif(UNIX)
 	set(obs_PLATFORM_SOURCES
 		platform-x11.cpp)
 
-	find_package(XCB COMPONENTS XCB REQUIRED RANDR REQUIRED XINERAMA REQUIRED)
-	
-	include_directories(
-		${XCB_INCLUDE_DIRS}
-		${X11_XCB_INCLUDE_DIRS})
-		
-	add_definitions(
-		${XCB_DEFINITIONS}
-		${X11_XCB_DEFINITIONS})
-
-	set(obs_PLATFORM_LIBRARIES
-		${XCB_LIBRARIES}
-		${X11_XCB_LIBRARIES}
+        set(obs_PLATFORM_LIBRARIES
                 Qt5::X11Extras)
 endif()
 
 set(obs_SOURCES
 	${obs_PLATFORM_SOURCES}
 	obs-app.cpp
+	api-interface.cpp
 	window-basic-main.cpp
 	window-basic-filters.cpp
 	window-basic-settings.cpp
@@ -107,6 +100,7 @@ set(obs_SOURCES
 	window-basic-source-select.cpp
 	window-basic-main-scene-collections.cpp
 	window-basic-main-transitions.cpp
+	window-basic-main-dropfiles.cpp
 	window-basic-main-profiles.cpp
 	window-license-agreement.cpp
 	window-basic-status-bar.cpp
@@ -220,6 +214,7 @@ target_link_libraries(${obs_APP}
 	libobs
 	libff
 	Qt5::Widgets
+	obs-frontend-api
 	${LIBCURL_LIBRARIES}
 	${obs_PLATFORM_LIBRARIES})
 
@@ -241,7 +236,7 @@ if(APPLE AND DEFINED ENV{FIXUP_BUNDLE})
 			Qt5::QOffscreenIntegrationPlugin)
 		get_target_property(_qt_plugin_path ${plugin} LOCATION)
 		if(EXISTS "${_qt_plugin_path}")
-            list(APPEND _qt_plugin_paths ${_qt_plugin_path})
+           list(APPEND _qt_plugin_paths ${_qt_plugin_path})
 			get_filename_component(_qt_plugin_file "${_qt_plugin_path}" NAME)
 			get_filename_component(_qt_plugin_type "${_qt_plugin_path}" PATH)
 			get_filename_component(_qt_plugin_type "${_qt_plugin_type}" NAME)
@@ -254,3 +249,5 @@ if(APPLE AND DEFINED ENV{FIXUP_BUNDLE})
 		endif()
 	endforeach()
 endif()
+
+add_subdirectory(frontend-plugins)
