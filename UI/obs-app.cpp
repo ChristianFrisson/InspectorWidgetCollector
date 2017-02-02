@@ -421,28 +421,28 @@ static bool MakeUserDirs()
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/basic") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/logs") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/logs") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/profiler_data") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/profiler_data") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
 #ifdef _WIN32
-	if (GetConfigPath(path, sizeof(path), "obs-studio/crashes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/crashes") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 #endif
-	if (GetConfigPath(path, sizeof(path), "obs-studio/plugin_config") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/plugin_config") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -454,12 +454,12 @@ static bool MakeUserProfileDirs()
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/basic/profiles") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/basic/scenes") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -473,7 +473,7 @@ static string GetProfileDirFromName(const char *name)
 	os_glob_t *glob;
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/basic/profiles") <= 0)
 		return outputPath;
 
 	strcat(path, "/*");
@@ -519,7 +519,7 @@ static string GetSceneCollectionFileFromName(const char *name)
 	os_glob_t *glob;
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/basic/scenes") <= 0)
 		return outputPath;
 
 	strcat(path, "/*.json");
@@ -563,7 +563,7 @@ bool OBSApp::InitGlobalConfig()
 	char path[512];
 
 	int len = GetConfigPath(path, sizeof(path),
-			"obs-studio/global.ini");
+			"InspectorWidgetCollector/global.ini");
 	if (len <= 0) {
 		return false;
 	}
@@ -677,7 +677,7 @@ bool OBSApp::SetTheme(std::string name, std::string path)
 	if (path == "") {
 		char userDir[512];
 		name = "themes/" + name + ".qss";
-		string temp = "obs-studio/" + name;
+		string temp = "InspectorWidgetCollector/" + name;
 		int ret = GetConfigPath(userDir, sizeof(userDir),
 				temp.c_str());
 
@@ -736,13 +736,13 @@ static void move_basic_to_profiles(void)
 	os_glob_t *glob;
 
 	/* if not first time use */
-	if (GetConfigPath(path, 512, "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, 512, "InspectorWidgetCollector/basic") <= 0)
 		return;
 	if (!os_file_exists(path))
 		return;
 
 	/* if the profiles directory doesn't already exist */
-	if (GetConfigPath(new_path, 512, "obs-studio/basic/profiles") <= 0)
+	if (GetConfigPath(new_path, 512, "InspectorWidgetCollector/basic/profiles") <= 0)
 		return;
 	if (os_file_exists(new_path))
 		return;
@@ -789,12 +789,12 @@ static void move_basic_to_scene_collections(void)
 	char path[512];
 	char new_path[512];
 
-	if (GetConfigPath(path, 512, "obs-studio/basic") <= 0)
+	if (GetConfigPath(path, 512, "InspectorWidgetCollector/basic") <= 0)
 		return;
 	if (!os_file_exists(path))
 		return;
 
-	if (GetConfigPath(new_path, 512, "obs-studio/basic/scenes") <= 0)
+	if (GetConfigPath(new_path, 512, "InspectorWidgetCollector/basic/scenes") <= 0)
 		return;
 	if (os_file_exists(new_path))
 		return;
@@ -859,7 +859,7 @@ static bool StartupOBS(const char *locale, profiler_name_store_t *store)
 {
 	char path[512];
 
-	if (GetConfigPath(path, sizeof(path), "obs-studio/plugin_config") <= 0)
+	if (GetConfigPath(path, sizeof(path), "InspectorWidgetCollector/plugin_config") <= 0)
 		return false;
 
 	return obs_startup(locale, path, store);
@@ -1085,7 +1085,7 @@ static void delete_oldest_file(const char *location)
 
 static void get_last_log(void)
 {
-	BPtr<char>       logDir(GetConfigPathPtr("obs-studio/logs"));
+	BPtr<char>       logDir(GetConfigPathPtr("InspectorWidgetCollector/logs"));
 	struct os_dirent *entry;
 	os_dir_t         *dir        = os_opendir(logDir);
 	uint64_t         highest_ts = 0;
@@ -1176,14 +1176,14 @@ static void create_log_file(fstream &logFile)
 	get_last_log();
 
 	currentLogFile = GenerateTimeDateFilename("txt");
-	dst << "obs-studio/logs/" << currentLogFile.c_str();
+	dst << "InspectorWidgetCollector/logs/" << currentLogFile.c_str();
 
 	BPtr<char> path(GetConfigPathPtr(dst.str().c_str()));
 	logFile.open(path,
 			ios_base::in | ios_base::out | ios_base::trunc);
 
 	if (logFile.is_open()) {
-		delete_oldest_file("obs-studio/logs");
+		delete_oldest_file("InspectorWidgetCollector/logs");
 		base_set_log_handler(do_log, &logFile);
 	} else {
 		blog(LOG_ERROR, "Failed to open log file");
@@ -1229,7 +1229,7 @@ static void SaveProfilerData(const ProfilerSnapshot &snap)
 
 #define LITERAL_SIZE(x) x, (sizeof(x) - 1)
 	ostringstream dst;
-	dst.write(LITERAL_SIZE("obs-studio/profiler_data/"));
+	dst.write(LITERAL_SIZE("InspectorWidgetCollector/profiler_data/"));
 	dst.write(currentLogFile.c_str(), pos);
 	dst.write(LITERAL_SIZE(".csv.gz"));
 #undef LITERAL_SIZE
@@ -1293,7 +1293,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		OBSTranslator translator;
 
 		create_log_file(logFile);
-		delete_oldest_file("obs-studio/profiler_data");
+		delete_oldest_file("InspectorWidgetCollector/profiler_data");
 
 		program.installTranslator(&translator);
 
@@ -1319,7 +1319,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 #define CRASH_MESSAGE \
 	"Woops, OBS has crashed!\n\nWould you like to copy the crash log " \
 	"to the clipboard?  (Crash logs will still be saved to the " \
-	"%appdata%\\obs-studio\\crashes directory)"
+	"%appdata%\\InspectorWidgetCollector\\crashes directory)"
 
 static void main_crash_handler(const char *format, va_list args, void *param)
 {
@@ -1328,9 +1328,9 @@ static void main_crash_handler(const char *format, va_list args, void *param)
 	vsnprintf(text, MAX_CRASH_REPORT_SIZE, format, args);
 	text[MAX_CRASH_REPORT_SIZE - 1] = 0;
 
-	delete_oldest_file("obs-studio/crashes");
+	delete_oldest_file("InspectorWidgetCollector/crashes");
 
-	string name = "obs-studio/crashes/Crash ";
+	string name = "InspectorWidgetCollector/crashes/Crash ";
 	name += GenerateTimeDateFilename("txt");
 
 	BPtr<char> path(GetConfigPathPtr(name.c_str()));
@@ -1526,7 +1526,7 @@ static void move_to_xdg(void)
 	if (!home)
 		return;
 
-	if (snprintf(old_path, 512, "%s/.obs-studio", home) <= 0)
+	if (snprintf(old_path, 512, "%s/.InspectorWidgetCollector", home) <= 0)
 		return;
 
 	/* make base xdg path if it doesn't already exist */
@@ -1535,7 +1535,7 @@ static void move_to_xdg(void)
 	if (os_mkdirs(new_path) == MKDIR_ERROR)
 		return;
 
-	if (GetConfigPath(new_path, 512, "obs-studio") <= 0)
+	if (GetConfigPath(new_path, 512, "InspectorWidgetCollector") <= 0)
 		return;
 
 	if (os_file_exists(old_path) && !os_file_exists(new_path)) {
@@ -1679,7 +1679,7 @@ static void convert_14_2_encoder_setting(const char *encoder, const char *file)
 static void upgrade_settings(void)
 {
 	char path[512];
-	int pathlen = GetConfigPath(path, 512, "obs-studio/basic/profiles");
+	int pathlen = GetConfigPath(path, 512, "InspectorWidgetCollector/basic/profiles");
 
 	if (pathlen <= 0)
 		return;

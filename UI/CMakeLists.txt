@@ -221,7 +221,7 @@ target_link_libraries(${obs_APP}
 define_graphic_modules(${obs_APP})
 
 install_obs_core(${obs_APP})
-install_obs_data(${obs_APP} data obs-studio)
+install_obs_data(${obs_APP} data InspectorWidgetCollector)
 
 if (UNIX AND UNIX_STRUCTURE AND NOT APPLE)
 	install(FILES dist/obs.desktop DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/applications)

@@ -13,7 +13,7 @@
 
 ; Main Install settings
 Name "${APPNAMEANDVERSION}"
-InstallDir "$PROGRAMFILES32\obs-studio"
+InstallDir "$PROGRAMFILES32\InspectorWidgetCollector"
 InstallDirRegKey HKLM "Software\${APPNAME}" ""
 !ifdef FULL
 OutFile "OBS-Studio-${APPVERSION}-Full-Installer.exe"
@@ -36,7 +36,7 @@ RequestExecutionLevel admin
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE PreReqCheck
 
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_LICENSE "data\obs-studio\license\gplv2.txt"
+!insertmacro MUI_PAGE_LICENSE "data\InspectorWidgetCollector\license\gplv2.txt"
 !insertmacro MUI_PAGE_DIRECTORY
 !ifdef FULL
 	!insertmacro MUI_PAGE_COMPONENTS
@@ -326,7 +326,7 @@ SectionEnd
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;Uninstall section
-Section "un.obs-studio Program Files" UninstallSection1
+Section "un.InspectorWidgetCollector Program Files" UninstallSection1
 
 	SectionIn RO
 
@@ -362,7 +362,7 @@ Section "un.obs-studio Program Files" UninstallSection1
 SectionEnd
 
 Section /o "un.User Settings" UninstallSection2
-	RMDir /R "$APPDATA\obs-studio"
+	RMDir /R "$APPDATA\InspectorWidgetCollector"
 SectionEnd
 
 !insertmacro MUI_UNFUNCTION_DESCRIPTION_BEGIN
