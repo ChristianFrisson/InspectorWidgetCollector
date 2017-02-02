@@ -225,7 +225,7 @@ install_obs_data(${obs_APP} data obs-studio)
 
 if (UNIX AND UNIX_STRUCTURE AND NOT APPLE)
 	install(FILES dist/obs.desktop DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/applications)
-	install(FILES forms/images/obs.png
+	install(FILES forms/images/InspectorWidgetCollector.png
 		DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps)
 endif()
 

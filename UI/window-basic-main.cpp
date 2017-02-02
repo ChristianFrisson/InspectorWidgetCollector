@@ -187,7 +187,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 	installEventFilter(CreateShortcutFilter());
 
 	stringstream name;
-	name << "InspectorWidgetCollector " << App()->GetVersionString();
+	name << "InspectorWidgetCollector forked from obs-studio " << App()->GetVersionString();
 	blog(LOG_INFO, "%s", name.str().c_str());
 	blog(LOG_INFO, "---------------------------------");
 
@@ -3555,7 +3555,7 @@ void OBSBasic::UploadLog(const char *file)
 	obs_data_set_obj(files.get(), file, content.get());
 
 	stringstream ss;
-	ss << "InspectorWidgetCollector " << App()->GetVersionString()
+	ss << "InspectorWidgetCollector forked from obs-studio " << App()->GetVersionString()
 	   << " log file uploaded at " << CurrentDateTimeString();
 	obs_data_set_string(request.get(), "description", ss.str().c_str());
 	obs_data_set_bool(request.get(), "public", false);
@@ -3817,7 +3817,7 @@ inline void OBSBasic::OnDeactivate()
 		ClearProcessPriority();
 
 		if (trayIcon)
-			trayIcon->setIcon(QIcon(":/res/images/obs.png"));
+			trayIcon->setIcon(QIcon(":/res/images/InspectorWidgetCollector.png"));
 	}
 }
 
@@ -4804,7 +4804,7 @@ void OBSBasic::UpdateTitleBar()
 	const char *sceneCollection = config_get_string(App()->GlobalConfig(),
 			"Basic", "SceneCollection");
 
-	name << "InspectorWidgetCollector " << App()->GetVersionString();
+	name << "InspectorWidgetCollector forked from obs-studio ";
 	if (previewProgramMode)
 		name << "Studio ";
 
@@ -4982,9 +4982,9 @@ void OBSBasic::ToggleShowHide()
 
 void OBSBasic::SystemTrayInit()
 {
-	trayIcon = new QSystemTrayIcon(QIcon(":/res/images/obs.png"),
+	trayIcon = new QSystemTrayIcon(QIcon(":/res/images/InspectorWidgetCollector.png"),
 			this);
-	trayIcon->setToolTip("OBS Studio");
+	trayIcon->setToolTip("InspectorWidget Collector");
 
 	showHide = new QAction(QTStr("Basic.SystemTray.Show"),
 			trayIcon);
@@ -5035,7 +5035,7 @@ void OBSBasic::SysTrayNotify(const QString &text,
 	if (QSystemTrayIcon::supportsMessages()) {
 		QSystemTrayIcon::MessageIcon icon =
 				QSystemTrayIcon::MessageIcon(n);
-		trayIcon->showMessage("OBS Studio", text, icon, 10000);
+		trayIcon->showMessage("InspectorWidget Collector", text, icon, 10000);
 	}
 }
 
