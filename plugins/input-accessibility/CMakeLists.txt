@@ -1,8 +1,8 @@
 project(input-accessibility)
 
 if(APPLE)
-        set(BUILD_CLI OFF)
-        set(BUILD_GUI OFF)
+        set(BUILD_CLI OFF CACHE BOOL "Not building AXRecord CLI" FORCE)
+        set(BUILD_GUI OFF CACHE BOOL "Not building AXRecord GUI" FORCE)
         include_directories(AXRecord)
         add_subdirectory(AXRecord)
         set(input-accessibility_PLATFORM_SOURCES
