@@ -54,6 +54,8 @@
 
 #include "ui_OBSBasic.h"
 
+#include <libavcodec/avcodec.h>
+
 #include <fstream>
 #include <sstream>
 
@@ -864,12 +866,22 @@ bool OBSBasic::InitBasicConfigDefaults()
 	config_set_default_string(basicConfig, "AdvOut", "RecFilePath",
 			GetDefaultVideoSavePath().c_str());
 	config_set_default_string(basicConfig, "AdvOut", "RecFormat", "mp4");
+	config_set_default_string(basicConfig, "AdvOut", "FFFormat", "mp4");
+	config_set_default_string(basicConfig, "AdvOut", "FFFormatMimeType", "video/mp4");
 	config_set_default_bool  (basicConfig, "AdvOut", "RecUseRescale",
 			false);
 	config_set_default_uint  (basicConfig, "AdvOut", "RecTracks", (1<<0));
+#ifdef __APPLE__
 	config_set_default_string(basicConfig, "AdvOut", "RecEncoder",
+			"vt_h264_hw");
+	config_set_default_string(basicConfig, "AdvOut", "FFVEncoder",
+			"h264_videotoolbox");
+	config_set_default_int(basicConfig, "AdvOut", "FFVEncoderId",
+			(int)AV_CODEC_ID_H264);
+#else
+    config_set_default_string(basicConfig, "AdvOut", "RecEncoder",
 			"none");
-
+#endif
 	config_set_default_bool  (basicConfig, "AdvOut", "FFOutputToFile",
 			true);
 	config_set_default_string(basicConfig, "AdvOut", "FFFilePath",
