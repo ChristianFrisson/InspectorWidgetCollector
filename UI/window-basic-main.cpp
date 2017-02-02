@@ -452,7 +452,16 @@ void OBSBasic::CreateDefaultScene(bool firstStart)
 	ui->transitionDuration->setValue(300);
 	SetTransition(fadeTransition);
 
-	obs_scene_t  *scene  = obs_scene_create(Str("Basic.Scene"));
+	obs_scene_t  *scene  = obs_scene_create("InspectorWidget");
+
+	vector<string> sourcenames;
+	sourcenames.push_back("input_accessibility");
+	sourcenames.push_back("input_uiohook");
+	sourcenames.push_back("display_capture");
+	for (vector<string>::iterator sourcename = sourcenames.begin(); sourcename != sourcenames.end(); sourcename++){
+		obs_source_t *source = obs_source_create(sourcename->c_str(),obs_source_get_display_name(sourcename->c_str()),NULL,NULL);
+		obs_scene_add(scene,source);
+	}
 
 	if (firstStart)
 		CreateFirstRunSources();
