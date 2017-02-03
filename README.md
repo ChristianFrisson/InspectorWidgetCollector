@@ -33,6 +33,8 @@ Then open a terminal in the source directory (`<source_path>`):
 * update all submodules: 
 ```git submodule update --init```
 
+Note: the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility) plugin is currently available only for Apple OSX. Otherwise everything is cross-platform for the following desktop operating systems:
+
 ### Apple OSX 10.9+
 
 #### Dependencies
@@ -80,7 +82,13 @@ replace `<mxe_path>` with the root path where mxe is installed
 
 ### Linux
 
-Not yet tested. Feel free to fork, try, mod, and issue pull requests!
+Not yet tested.
+
+## Contributing
+
+Feel free to fork, try, mod, and issue pull requests!
+
+The InspectorWidget Collector active/inactive icons have been sketched using [Pencil](https://github.com/evolus/pencil) with its [fontawesome](http://fontawesome.io) icons stencil. The [project file](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/UI/forms/images/InspectorWidgetCollector.ep) is part of the distribution. A redesign is welcome!
 
 ## License
 
@@ -90,4 +98,4 @@ InspectorWidget Collector is released under the terms of the [GPLv2](http://www.
  * [jp9000](https://github.com/jp9000/) and many other [contributors](https://github.com/jp9000/obs-studio/graphs/contributors): creators and developers of [obs-studio](https://github.com/jp9000/obs-studio) which InspectorWidget Collector forks
  * [kwhat](https://github.com/kwhat/): creator and developer of the [libuiohook](https://github.com/kwhat/libuiohook) library
  * [Sylvain Malacria](http://malacria.com) (Inria Lille): creator of [AXRecord](https://github.com/InspectorWidget/AXRecord) 
- * [Christian Frisson](http://christian.frisson.re) (initially University of Mons, now Inria Lille): creator of the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility)  and [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugins and the InspectorWidget Collector fork
+ * [Christian Frisson](http://christian.frisson.re) (initially University of Mons, now Inria Lille): creator of the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility) and [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugins and the InspectorWidget Collector fork
