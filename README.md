@@ -35,15 +35,30 @@ Then open a terminal in the source directory (`<source_path>`):
 
 ### Apple OSX 10.9+
 
+#### Dependencies
+
+Install cmake, qt5 and ffmpeg with your package manager:
+ * [Homebrew](http://brew.sh):
+```brew install cmake ffmpeg qt5```
+ * [MacPorts](https://www.macports.org):
+```sudo port install cmake ffmpeg qt5```
+
+#### Compilation
+
 Create a build folder, open a terminal inside:
 * set that we are creating a bundle: 
-```export FIXUP_BUNDLE=1```
+```
+export FIXUP_BUNDLE=1
+```
 * configure cmake: 
-```cmake <source_path> -DBUILD_REDISTRIBUTABLE=ON -DCMAKE_INSTALL_PREFIX=release```
-replace `<source_path>` with the path to the source directory from above
-(optional) add `-DCMAKE_PREFIX_PATH=<qt5_path>` if Qt5 is installed in a specific location (for instance replace `<qt5_path>` with `/opt/local/libexec/qt5` if Qt5 is installed through [MacPorts](https://www.macports.org))
+```
+cmake <source_path>
+```
+Note: replace `<source_path>` with the path to the source directory from above, optionally add `-DCMAKE_PREFIX_PATH=<qt5_path>` if Qt5 is installed in a specific location.
 * compile and create the package: 
-```make package```
+```
+make package
+```
 
 ### Windows 9+: cross-compile on Apple OSX or Linux using mxe
 
@@ -72,6 +87,7 @@ Not yet tested. Feel free to fork, try, mod, and issue pull requests!
 InspectorWidget Collector is released under the terms of the [GPLv2](http://www.gnu.org/licenses/gpl-2.0.html) license.
 
 ## Authors
- * [jp9000](https://github.com/jp9000/) and many other [contributors](https://github.com/jp9000/obs-studio/graphs/contributors): creators and developers of the original [obs-studio](https://github.com/jp9000/obs-studio)
- * [kwhat](https://github.com/kwhat/): creator and developer of the original [libuiohook](https://github.com/kwhat/libuiohook)
- * [Christian Frisson](http://christian.frisson.re) (initially University of Mons, now Inria Lille): creator of the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility)  and [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugins
+ * [jp9000](https://github.com/jp9000/) and many other [contributors](https://github.com/jp9000/obs-studio/graphs/contributors): creators and developers of [obs-studio](https://github.com/jp9000/obs-studio) which InspectorWidget Collector forks
+ * [kwhat](https://github.com/kwhat/): creator and developer of the [libuiohook](https://github.com/kwhat/libuiohook) library
+ * [Sylvain Malacria](http://malacria.com) (Inria Lille): creator of [AXRecord](https://github.com/InspectorWidget/AXRecord) 
+ * [Christian Frisson](http://christian.frisson.re) (initially University of Mons, now Inria Lille): creator of the [input-accessibility](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-accessibility)  and [input-uiohook](https://github.com/InspectorWidget/InspectorWidgetCollector/tree/InspectorWidget/plugins/input-uiohook) plugins and the InspectorWidget Collector fork
