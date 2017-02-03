@@ -17,20 +17,14 @@
     UIO_LOG(level, format, ##__VA_ARGS__)
 //UIO_LOG_S(s->source, level, format, ##__VA_ARGS__)
 
+#define S_ELEMENT_TRACKING_DELAY                   "element_tracking_delay"
+#define S_WINDOW_TRACKING_DELAY                   "window_tracking_delay"
+
+#define T_(text) obs_module_text("InputAccessibility." text)
+#define T_ELEMENT_TRACKING_DELAY                   T_("ElementTrackingDelay")
+#define T_WINDOW_TRACKING_DELAY                  T_("WindowTrackingDelay")
+
 FILE * event_file = 0;
-
-const char* start_logging_accessibility(char* event_file_name){
-    if (!event_file_name || (event_file_name && !event_file_name[0])) {
-        return "event file name empty";
-    }
-
-#ifdef __APPLE__
-    int status = start_ax(event_file_name);
-    return (status == 0 ? "" : "Could not start accessibility recording");
-#endif
-
-    return "Could not start accessibility recording";
-}
 
 int stop_logging_accessibility(void){
 #ifdef __APPLE__
@@ -109,6 +103,8 @@ static void input_accessibility_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "recording", false);
 	const char* default_path = GetDefaultEventsSavePath();
 	obs_data_set_default_string(settings, "folder", default_path);
+    obs_data_set_default_double(settings,S_ELEMENT_TRACKING_DELAY, 0.5);
+    obs_data_set_default_double(settings,S_WINDOW_TRACKING_DELAY, 0.2);
 	printf("path %s\n",default_path);
 }
 
@@ -140,19 +136,24 @@ static void input_accessibility_destroy(void *data)
 	bfree(context);
 }
 
-static obs_properties_t *input_accessibility_properties(void *unused)
-{
-	UNUSED_PARAMETER(unused);
-
+static obs_properties_t *input_accessibility_properties(void *data)
+{	
 	obs_properties_t *props = obs_properties_create();
 
-	const char* default_path = GetDefaultEventsSavePath();
-
-	printf("path %s\n",default_path);
+	const char* default_path = GetDefaultEventsSavePath();	
 
 	obs_properties_add_path(props,
 	                        "folder", obs_module_text("SaveFolder"),
 	                        OBS_PATH_DIRECTORY, NULL, default_path);
+
+    obs_properties_add_float_slider(props,
+                                    S_ELEMENT_TRACKING_DELAY,
+                                    T_ELEMENT_TRACKING_DELAY,
+                                    0.01,5,0.01);
+    obs_properties_add_float_slider(props,
+                                    S_WINDOW_TRACKING_DELAY,
+                                    T_WINDOW_TRACKING_DELAY,
+                                    0.01,5,0.01);
 
 	return props;
 }
@@ -160,12 +161,28 @@ static obs_properties_t *input_accessibility_properties(void *unused)
 static const char * input_accessibility_start(void *data, obs_data_t *settings)
 {
 	UNUSED_PARAMETER(data);
-	UNUSED_PARAMETER(settings);
+    char* msg;
+    float element_track_delay;
+    float window_track_delay;
 	const char *folder = obs_data_get_string(settings, "folder");
 	char* filepath = GenerateEventsFilename(folder);
-    char* status = start_logging_accessibility(filepath);
-    free(filepath);
-    return status;
+
+   if (!filepath || (filepath && !filepath[0])) {
+       return "event file name empty";
+   }
+
+   element_track_delay = (float)obs_data_get_double(settings,S_ELEMENT_TRACKING_DELAY);
+   window_track_delay = (float)obs_data_get_double(settings,S_WINDOW_TRACKING_DELAY);
+
+    #ifdef __APPLE__
+        int status = start_ax(filepath, element_track_delay, window_track_delay);
+        msg = (status == 0 ? "" : "Could not start accessibility recording");
+    #else
+        msg = "Could not start accessibility recording";
+    #endif
+
+    //free filepath;
+    return msg;
 }
 
 static void input_accessibility_stop(void *data, obs_data_t *settings)
