@@ -3826,7 +3826,7 @@ inline void OBSBasic::OnActivate()
 		UpdateProcessPriority();
 
 		if (trayIcon)
-			trayIcon->setIcon(QIcon(":/res/images/tray_active.png"));
+			trayIcon->setIcon(QIcon(":/res/images/InspectorWidgetCollector_Active.png"));
 	}
 }
 
@@ -3838,7 +3838,7 @@ inline void OBSBasic::OnDeactivate()
 		ClearProcessPriority();
 
 		if (trayIcon)
-			trayIcon->setIcon(QIcon(":/res/images/InspectorWidgetCollector.png"));
+			trayIcon->setIcon(QIcon(":/res/images/InspectorWidgetCollector_Inactive.png"));
 	}
 }
 
@@ -5003,7 +5003,7 @@ void OBSBasic::ToggleShowHide()
 
 void OBSBasic::SystemTrayInit()
 {
-	trayIcon = new QSystemTrayIcon(QIcon(":/res/images/InspectorWidgetCollector.png"),
+	trayIcon = new QSystemTrayIcon(QIcon(":/res/images/InspectorWidgetCollector_Inactive.png"),
 			this);
 	trayIcon->setToolTip("InspectorWidget Collector");
 

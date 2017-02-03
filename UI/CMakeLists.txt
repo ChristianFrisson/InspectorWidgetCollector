@@ -227,6 +227,10 @@ if (UNIX AND UNIX_STRUCTURE AND NOT APPLE)
 	install(FILES dist/obs.desktop DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/applications)
 	install(FILES forms/images/InspectorWidgetCollector.png
 		DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps)
+	install(FILES forms/images/InspectorWidgetCollector_Active.png
+		DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps)
+	install(FILES forms/images/InspectorWidgetCollector_Inactive.png
+		DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/icons/hicolor/256x256/apps)
 endif()
 
 if(APPLE AND DEFINED ENV{FIXUP_BUNDLE})

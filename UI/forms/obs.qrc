@@ -14,6 +14,8 @@
     <file>images/up.png</file>
     <file>images/obs.png</file>
     <file>images/InspectorWidgetCollector.png</file>
+    <file>images/InspectorWidgetCollector_Active.png</file>
+    <file>images/InspectorWidgetCollector_Inactive.png</file>	
     <file>images/tray_active.png</file>
   </qresource>
   <qresource prefix="/settings">
