@@ -442,6 +442,21 @@ void OBSBasic::CreateFirstRunSources()
 				Str("Basic.AuxDevice1"), 3);
 }
 
+void OBSBasic::CreateDefaultInspectorWidgetScene(obs_scene_t *scene)
+{
+	if(!scene){
+		return;
+	}
+	vector<string> sourcenames;
+	sourcenames.push_back("input_accessibility");
+	sourcenames.push_back("input_uiohook");
+	sourcenames.push_back("display_capture");
+	for (vector<string>::iterator sourcename = sourcenames.begin(); sourcename != sourcenames.end(); sourcename++){
+		obs_source_t *source = obs_source_create(sourcename->c_str(),obs_source_get_display_name(sourcename->c_str()),NULL,NULL);
+		obs_scene_add(scene,source);
+	}
+}
+
 void OBSBasic::CreateDefaultScene(bool firstStart)
 {
 	disableSaving++;
@@ -453,15 +468,7 @@ void OBSBasic::CreateDefaultScene(bool firstStart)
 	SetTransition(fadeTransition);
 
 	obs_scene_t  *scene  = obs_scene_create("InspectorWidget");
-
-	vector<string> sourcenames;
-	sourcenames.push_back("input_accessibility");
-	sourcenames.push_back("input_uiohook");
-	sourcenames.push_back("display_capture");
-	for (vector<string>::iterator sourcename = sourcenames.begin(); sourcename != sourcenames.end(); sourcename++){
-		obs_source_t *source = obs_source_create(sourcename->c_str(),obs_source_get_display_name(sourcename->c_str()),NULL,NULL);
-		obs_scene_add(scene,source);
-	}
+	CreateDefaultInspectorWidgetScene(scene);
 
 	if (firstStart)
 		CreateFirstRunSources();
@@ -3032,6 +3039,7 @@ void OBSBasic::on_actionAddScene_triggered()
 		}
 
 		obs_scene_t *scene = obs_scene_create(name.c_str());
+		CreateDefaultInspectorWidgetScene(scene);
 		source = obs_scene_get_source(scene);
 		AddScene(source);
 		SetCurrentScene(source);

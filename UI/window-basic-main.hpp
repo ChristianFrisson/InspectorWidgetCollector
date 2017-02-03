@@ -169,6 +169,7 @@ private:
 	void          SetupEncoders();
 
 	void          CreateFirstRunSources();
+	void          CreateDefaultInspectorWidgetScene(obs_scene_t *scene);
 	void          CreateDefaultScene(bool firstStart);
 
 	void          ClearVolumeControls();
