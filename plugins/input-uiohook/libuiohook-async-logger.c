@@ -192,6 +192,14 @@ void dispatch_proc(uiohook_event * const event)
         break;
 
     case EVENT_KEY_PRESSED:
+    {
+        keychar = escape_char(event->data.keyboard.keychar);
+        //printf("pressed: '%ls'\n",keychar);
+        newlength = snprintf(buffer + length, sizeof(buffer) - length,
+                             ",keycode=0x%X,rawcode=0x%X",
+                             event->data.keyboard.keycode, event->data.keyboard.rawcode);
+    }
+        break;
         // If the escape key is pressed, naturally terminate the program.
         /*if (event->data.keyboard.keycode == VC_ESCAPE) {
             int status = hook_stop();
@@ -214,14 +222,19 @@ void dispatch_proc(uiohook_event * const event)
             }
         }*/
     case EVENT_KEY_RELEASED:
+    {
+        keychar = escape_char(event->data.keyboard.keychar);
+        //printf("released: '%ls'\n",keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
                              ",keycode=0x%X,rawcode=0x%X",
                              event->data.keyboard.keycode, event->data.keyboard.rawcode);
+    }
         break;
 
     case EVENT_KEY_TYPED:
     {
         keychar = escape_char(event->data.keyboard.keychar);
+        //printf("typed: '%ls'\n",keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
                              ",keychar=%ls,rawcode=0x%X",
                              keychar,
