@@ -126,8 +126,9 @@ wchar_t* escape_char(wchar_t _char){
         escape[2] = L'\0';
     }
     else{
-        escape = malloc(1*sizeof(wchar_t));
+        escape = (wchar_t*) malloc(2*sizeof(wchar_t));
         escape[0] = _char;
+        escape[1] = L'\0';
     }
     return escape;
 }
