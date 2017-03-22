@@ -145,7 +145,7 @@ void dispatch_proc(uiohook_event * const event)
     uint64_t clock = os_gettime_ns();
 
     size_t length = snprintf(buffer, sizeof(buffer),
-                             "id=%i,when=%" PRIu64 ",clock=%" PRIu64 ",mask=0x%X",
+                             "id=\"%i\",when=\"%" PRIu64 "\",clock=\"%" PRIu64 "\",mask=\"0x%X\"",
                              event->type, event->time, clock, event->mask);
     size_t newlength = length;
     wchar_t* keychar = 0;
@@ -196,7 +196,7 @@ void dispatch_proc(uiohook_event * const event)
         keychar = escape_char(event->data.keyboard.keychar);
         //printf("pressed: '%ls'\n",keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keycode=0x%X,rawcode=0x%X",
+                             ",event=\"key_press\",keycode=\"0x%X\",rawcode=\"0x%X\"",
                              event->data.keyboard.keycode, event->data.keyboard.rawcode);
     }
         break;
@@ -226,7 +226,7 @@ void dispatch_proc(uiohook_event * const event)
         keychar = escape_char(event->data.keyboard.keychar);
         //printf("released: '%ls'\n",keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keycode=0x%X,rawcode=0x%X",
+                             ",event=\"key_release\",keycode=\"0x%X\",rawcode=\"0x%X\"",
                              event->data.keyboard.keycode, event->data.keyboard.rawcode);
     }
         break;
@@ -236,26 +236,46 @@ void dispatch_proc(uiohook_event * const event)
         keychar = escape_char(event->data.keyboard.keychar);
         //printf("typed: '%ls'\n",keychar);
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",keychar=%ls,rawcode=0x%X",
+                             ",event=\"key_type\",keychar=\"%ls\",rawcode=\"0x%X\"",
                              keychar,
                              event->data.keyboard.rawcode);
     }
         break;
 
     case EVENT_MOUSE_PRESSED:
+        newlength = snprintf(buffer + length, sizeof(buffer) - length,
+                             ",event=\"mouse_press\",x=\"%i\",y=\"%i\",button=\"%i\",clicks=\"%i\"",
+                             event->data.mouse.x, event->data.mouse.y,
+                             event->data.mouse.button, event->data.mouse.clicks);
+        break;
     case EVENT_MOUSE_RELEASED:
+        newlength = snprintf(buffer + length, sizeof(buffer) - length,
+                             ",event=\"mouse_release\",x=\"%i\",y=\"%i\",button=\"%i\",clicks=\"%i\"",
+                             event->data.mouse.x, event->data.mouse.y,
+                             event->data.mouse.button, event->data.mouse.clicks);
+        break;
     case EVENT_MOUSE_CLICKED:
+        newlength = snprintf(buffer + length, sizeof(buffer) - length,
+                             ",event=\"mouse_click\",x=\"%i\",y=\"%i\",button=\"%i\",clicks=\"%i\"",
+                             event->data.mouse.x, event->data.mouse.y,
+                             event->data.mouse.button, event->data.mouse.clicks);
+        break;
     case EVENT_MOUSE_MOVED:
+        newlength = snprintf(buffer + length, sizeof(buffer) - length,
+                             ",event=\"mouse_moved\",x=\"%i\",y=\"%i\",button=\"%i\",clicks=\"%i\"",
+                             event->data.mouse.x, event->data.mouse.y,
+                             event->data.mouse.button, event->data.mouse.clicks);
+        break;
     case EVENT_MOUSE_DRAGGED:
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",x=%i,y=%i,button=%i,clicks=%i",
+                             ",event=\"mouse_drag\",x=\"%i\",y=\"%i\",button=\"%i\",clicks=\"%i\"",
                              event->data.mouse.x, event->data.mouse.y,
                              event->data.mouse.button, event->data.mouse.clicks);
         break;
 
     case EVENT_MOUSE_WHEEL:
         newlength = snprintf(buffer + length, sizeof(buffer) - length,
-                             ",type=%i,amount=%i,rotation=%i",
+                             ",event=\"mouse_wheel\",type=\"%i\",amount=\"%i\",rotation=\"%i\"",
                              event->data.wheel.type, event->data.wheel.amount,
                              event->data.wheel.rotation);
         break;
