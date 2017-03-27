@@ -4026,14 +4026,42 @@ void OBSBasic::StreamingStop(int code)
 
 void OBSBasic::StartRecording()
 {
+    /// Generate scene config name to be saved with recording
+    const char *mode = config_get_string(basicConfig, "Output", "Mode");
+    bool advOut = astrcmpi(mode, "Advanced") == 0;
+    const char *recType = config_get_string(basicConfig, "AdvOut",
+            "RecType");
+    bool ffmpegOutput = astrcmpi(recType, "FFmpeg") == 0;
+    bool ffmpegRecording = ffmpegOutput &&
+        config_get_bool(basicConfig, "AdvOut", "FFOutputToFile");
+    const char *path = config_get_string(basicConfig,
+                         advOut ? "AdvOut":"SimpleOutput",
+                         advOut ? (ffmpegRecording? "FFFilePath" : "RecFilePath") : "FilePath");
+    const char *filenameFormat = config_get_string(basicConfig,
+            "Output", "FilenameFormatting");
+    bool noSpace = true;
+    char fileName[512];
+    int ret;
+    string filename = GenerateSpecifiedFilename("json",
+                                                noSpace, filenameFormat);
+    ret = snprintf(fileName, 512, "%s/%s",
+            path,filename.c_str());
+    if (ret <= 0)
+        return;
+
 	if (outputHandler->RecordingActive())
 		return;
 
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_RECORDING_STARTING);
 
-	SaveProject();
+    SaveProject();
+
 	outputHandler->StartRecording();
+
+    /// Save scene config with recording
+    /// (after recording is started so that the path exists)
+    Save(fileName);
 }
 
 void OBSBasic::RecordStopping()
